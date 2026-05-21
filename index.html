@@ -383,33 +383,37 @@
     }
 
     // ==================================================
-    // 💾 [데이터베이스 동기화 커널]
-    // ==================================================
-    function loadFromLocalStorage() {
-        try {
-            const scoreData = localStorage.getItem('teacherscore_db');
-            scoresDatabase = scoreData ? JSON.parse(scoreData) : [];
-            
-            const lessonData = localStorage.getItem('teacherscore_lesson_db');
-            if(lessonData) {
-                lessonDatabase = JSON.parse(lessonData);
-            } else {
-                defaultLessons.forEach(item => {
-                    const blob = createDummyPdfBlob(item.title);
-                    item.rawBlobUrl = URL.createObjectURL(blob);
-                });
-                lessonDatabase = [...defaultLessons];
-            }
-        } catch (e) {
-            console.error("데이터 로드 실패:", e);
-            scoresDatabase = [];
-            lessonDatabase = [];
-        }
-    }
+// 💾 [수정된 데이터베이스 동기화 커널 - Firebase 연동]
+// ==================================================
 
-    function saveToLocalStorage() {
-        localStorage.setItem('teacherscore_db', JSON.stringify(scoresDatabase));
+// 1. 악보 목록을 서버에서 불러오기
+async function loadFromFirebase() {
+    try {
+        const snapshot = await db.collection('scores').get();
+        scoresDatabase = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderScoreList();
+        console.log("악보 목록 서버 로드 완료");
+    } catch (e) {
+        console.error("악보 로드 실패:", e);
     }
+}
+
+// 2. 악보 목록을 서버에 저장/업데이트하기
+async function saveToFirebase(scoreData) {
+    try {
+        // 기존에 있는 악보인지 확인 (DB ID 사용)
+        if (scoreData.id && typeof scoreData.id === 'string') {
+            await db.collection('scores').doc(scoreData.id).set(scoreData);
+        } else {
+            // 새 악보 추가
+            await db.collection('scores').add(scoreData);
+        }
+        await loadFromFirebase(); // 저장 후 목록 새로고침
+        alert("클라우드에 안전하게 저장되었습니다!");
+    } catch (e) {
+        console.error("저장 실패:", e);
+    }
+}
 
     function saveLessonToLocalStorage() {
         localStorage.setItem('teacherscore_lesson_db', JSON.stringify(lessonDatabase));
@@ -604,7 +608,7 @@
         if(existIdx > -1) {
             if(confirm("동일한 제목과 작곡가의 악보가 존재합니다. 덮어쓰시겠습니까?")) {
                 scoresDatabase[existIdx] = scoreData;
-                saveToLocalStorage();
+                saveToFirebase(scoreData);
                 alert("기존 악보가 성공적으로 수정 및 업데이트되었습니다.");
                 switchTab('list');
             }
@@ -612,20 +616,19 @@
         }
         
         scoresDatabase.push(scoreData);
-        saveToLocalStorage();
+        saveToFirebase(scoreData);
         alert("현재 악보가 목록에 성공적으로 저장되었습니다.");
         switchTab('list');
     }
 
-    function deleteScoreFromList(id, event) {
-        if(event) event.stopPropagation(); // 인쇄 트리거 버블링 차단
-        if(!isAdminMode) return;
-        if(!confirm("정말 이 악보를 목록에서 완전 삭제하시겠습니까?")) return;
-        
-        scoresDatabase = scoresDatabase.filter(item => item.id !== id);
-        saveToLocalStorage();
-        renderScoreList();
-    }
+    async function deleteScoreFromList(id, event) {
+    if(event) event.stopPropagation();
+    if(!isAdminMode) return;
+    if(!confirm("서버에서 삭제하시겠습니까?")) return;
+
+    await db.collection('scores').doc(id).delete();
+    await loadFromFirebase(); // 삭제 후 목록 갱신
+}
 
     // ==================================================
     // 🖨️ [악보 목록 렌더링 및 프리뷰 코어 메커니즘]
@@ -1054,19 +1057,11 @@ function handleFileSelect(files) {
     // ⚙️ [시스템 최초 초기화 빌더]
     // ==================================================
     window.onload = function() {
-        loadFromLocalStorage(); 
-        switchTab('list');
-        clearScoreToDefault(); 
-    };
-    // ==================================================
-    // ⚙️ [시스템 최초 초기화 빌더] - 최하단 위치
-    // ==================================================
-    window.onload = function() {
-        loadFromLocalStorage(); 
-        fetchLessonsFromServer(); // 🔥 최초 구동 시 구글 서버에서 실시간 레슨 목록 긁어오기 추가!
-        switchTab('list');
-        clearScoreToDefault(); 
-    };
+    loadFromFirebase(); // 이제 서버에서 악보를 불러옵니다
+    fetchLessonsFromServer(); 
+    switchTab('list');
+    clearScoreToDefault(); 
+};
 </script>
 </body>
 </html>
