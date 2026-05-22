@@ -435,25 +435,35 @@ async function loadFromFirebase() {
     }
 }
 
-// 2. 악보 목록을 서버에 저장/업데이트하기 (ID가 있으면 덮어쓰고, 없으면 ID를 생성하여 저장)
-async function saveToFirebase(scoreData) {
-    try {
-        // ID가 없으면 현재 시간으로 생성 (무조건 문자열로 변환)
-        const docId = scoreData.id ? String(scoreData.id) : Date.now().toString();
-        
-        // 덮어쓰기(set)를 사용하면 기존 ID가 있으면 내용을 수정하고, 없으면 새로 생성합니다.
-        // { merge: true } 옵션을 넣으면 데이터 일부만 수정할 때도 안전합니다.
-        await db.collection('scores').doc(docId).set({
-            ...scoreData,
-            id: docId // 저장될 데이터 내부의 ID도 명확히 동기화
-        }, { merge: true });
+async function saveToFirebase() {
+    // 1. 데이터 준비
+    const data = {
+        title: document.getElementById('scoreTitle').innerText,
+        author: document.getElementById('scoreAuthor').innerText,
+        capo: document.getElementById('capoDisplay').innerText,
+        innerStaff: document.getElementById('staff-container').innerHTML,
+        date: new Date().toLocaleDateString()
+    };
 
-        await loadFromFirebase(); // 저장 후 목록 새로고침
-        alert("클라우드에 안전하게 저장되었습니다!");
-    } catch (e) {
-        console.error("저장 실패:", e);
-        alert("저장 실패: " + e.message);
+    // 2. [핵심] 기존에 저장된 ID가 있는지 확인
+    const existingId = window.editingScoreId; 
+
+    if (existingId) {
+        // --- CASE: 수정 모드 ---
+        // 기존 문서(ID)를 찾아 내용을 덮어씀 (파일이 새로 생기지 않음)
+        await firebase.firestore().collection('scores').doc(existingId).update(data);
+        alert("수정 완료되었습니다.");
+    } else {
+        // --- CASE: 신규 작성 모드 ---
+        // 새로운 문서를 생성함
+        await firebase.firestore().collection('scores').add(data);
+        alert("새 악보가 저장되었습니다.");
     }
+
+    // 3. 마지막에 반드시 초기화! (이걸 안 해서 계속 꼬이는 겁니다)
+    window.editingScoreId = null; 
+    switchTab('list'); // 목록으로 이동
+    renderScoreList(); // 목록 새로고침
 }
 
 function saveLessonToLocalStorage() {
