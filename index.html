@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>티처스코어 v3.6.2 (Easy Sheet Maker & Download)</title>
+    <title>티처스코어 v3.6.8 (Easy Sheet Maker & Download)</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght=400;700;900&display=swap');
         
@@ -169,7 +169,7 @@
     height: 38px !important;
 }
 
-/* 3. [끝세로줄] 두꺼운선(4px)이 먼저 오고, 간격(1px) 뒤에 얇은선(1px) */
+/* 3. [끝세로줄] 두꺼운선(4px)이 먼저 오고, 간격(3px) 뒤에 얇은선(2px) */
 .measure.bar-end::after {
     width: 3px !important; /* 전체 너비 */
     background: none !important;
@@ -178,7 +178,7 @@
     right: -2px !important;
 }
 
-/* 4. [겹세로줄] 간격 25% 축소 */
+/* 4. [겹세로줄]  */
 .measure.bar-double::after {
     width: 3px !important; /* 간격을 좁힘 */
     background: none !important;
@@ -190,8 +190,8 @@
 /* 도돌이표 점 디자인 (크기 키우고 간격 50% 더 확대) */
 .repeat-dot {
     font-size: 25px !important;
-    line-height: 30px !important; /* 간격 대폭 확대 */
-    top: 50% !important;
+    line-height: 40px !important; /* 간격 대폭 확대 */
+    top: 45% !important;
     transform: translateY(-49%) !important;
 }
 
@@ -199,11 +199,44 @@
 .dot-left { left: 8px !important; }
 .dot-right { right: 8px !important; }
 
+/* 기호 및 마크 버튼들 공통 스타일 */
+.symbol-row {
+    display: flex;
+    gap: 5px; /* 버튼 사이 간격 */
+    margin-bottom: 5px;
+}
+
+.symbol-btn {
+    height: 40px;      /* 높이 통일 */
+    border: none;
+    border-radius: 4px;
+    background: #5d6d7e;
+    color: white;
+    cursor: pointer;
+    flex: 1;           /* 가로 공간을 균등하게 차지 */
+    font-size: 14px;
+}
+/* 도돌이표 버튼 아이콘 키우기 */
+.repeat-btn {
+    font-size: 16px; /* 아이콘 크기 확대 */
+    flex: 1;         /* 상대적으로 좁게 */
+}
+
+/* 리허설 마크 버튼 비중 확대 */
+.rehearsal-btn {
+    flex: 2.5;       /* 리허설 버튼을 도돌이표보다 2.5배 넓게 */
+    font-size: 14px;
+}
+
+.symbol-row {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 5px;
+}
     </style>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-</head>
 </head>
 <body>
 
@@ -216,18 +249,22 @@
         <button class="control-btn" style="background:#e67e22;" onclick="saveAsPdf()">Pdf로 저장</button>
         <button class="control-btn admin-only-ui" style="background:#2980b9; margin-bottom:25px;" onclick="saveCurrentScoreToList()">📌 현재 악보를 목록에 저장</button>
         
-        <div class="tool-group">
-            <h3>기호 및 마크</h3>
-            <button class="symbol-btn" style="width:110px; font-size:14px;" onclick="toggleRehearsal()">리허설 마크</button>
-            <button class="symbol-btn" onclick="toggleDot('left')">𝄆</button>
-            <button class="symbol-btn" onclick="toggleDot('right')">𝄇</button>
-        </div>
+<div class="tool-group">
+    <h3>기호 및 마크</h3>
+    <div class="symbol-row">
+        <button class="symbol-btn rehearsal-btn" onclick="toggleRehearsal()">리허설 마크</button>
+        <button class="symbol-btn repeat-btn" onclick="toggleDot('left')">𝄆</button>
+        <button class="symbol-btn repeat-btn" onclick="toggleDot('right')">𝄇</button>
+    </div>
+</div>
 
-        <div class="tool-group">
-            <h3>세로줄 관리</h3>
-            <button class="symbol-btn" style="width:110px; font-size:14px;" onclick="toggleBar('double')">겹세로줄</button>
-            <button class="symbol-btn" style="width:110px; font-size:14px;" onclick="toggleBar('end')">끝세로줄</button>
-        </div>
+<div class="tool-group">
+    <h3>세로줄 관리</h3>
+    <div class="symbol-row">
+        <button class="symbol-btn" onclick="toggleBar('double')">겹세로줄</button>
+        <button class="symbol-btn" onclick="toggleBar('end')">끝세로줄</button>
+    </div>
+</div>
 
         <div class="tool-group">
             <h3>가사 설정</h3>
@@ -398,26 +435,30 @@ async function loadFromFirebase() {
     }
 }
 
-// 2. 악보 목록을 서버에 저장/업데이트하기
+// 2. 악보 목록을 서버에 저장/업데이트하기 (ID가 있으면 덮어쓰고, 없으면 ID를 생성하여 저장)
 async function saveToFirebase(scoreData) {
     try {
-        // 기존에 있는 악보인지 확인 (DB ID 사용)
-        if (scoreData.id && typeof scoreData.id === 'string') {
-            await db.collection('scores').doc(scoreData.id).set(scoreData);
-        } else {
-            // 새 악보 추가
-            await db.collection('scores').add(scoreData);
-        }
+        // ID가 없으면 현재 시간으로 생성 (무조건 문자열로 변환)
+        const docId = scoreData.id ? String(scoreData.id) : Date.now().toString();
+        
+        // 덮어쓰기(set)를 사용하면 기존 ID가 있으면 내용을 수정하고, 없으면 새로 생성합니다.
+        // { merge: true } 옵션을 넣으면 데이터 일부만 수정할 때도 안전합니다.
+        await db.collection('scores').doc(docId).set({
+            ...scoreData,
+            id: docId // 저장될 데이터 내부의 ID도 명확히 동기화
+        }, { merge: true });
+
         await loadFromFirebase(); // 저장 후 목록 새로고침
         alert("클라우드에 안전하게 저장되었습니다!");
     } catch (e) {
         console.error("저장 실패:", e);
+        alert("저장 실패: " + e.message);
     }
 }
 
-    function saveLessonToLocalStorage() {
-        localStorage.setItem('teacherscore_lesson_db', JSON.stringify(lessonDatabase));
-    }
+function saveLessonToLocalStorage() {
+    localStorage.setItem('teacherscore_lesson_db', JSON.stringify(lessonDatabase));
+}
 
     // ==================================================
     // 🎼 [악보 드로잉 및 제어 코어]
@@ -588,46 +629,47 @@ async function saveToFirebase(scoreData) {
         }
     }
 
-    function saveCurrentScoreToList() {
-        const titleText = document.getElementById('scoreTitle').innerText.trim() || "제목 없는 악보";
-        const authorText = document.getElementById('scoreAuthor').innerText.trim() || "미상";
-        const capoText = document.getElementById('capoDisplay').innerText.trim();
-        const staffHtml = document.getElementById('staff-container').innerHTML;
-        
-        const scoreData = {
-            id: Date.now(),
-            title: titleText,
-            author: authorText,
-            capo: capoText,
-            innerStaff: staffHtml,
-            date: new Date().toLocaleDateString('ko-KR')
-        };
-        
-        // 중복 방지 교정 가동
-        const existIdx = scoresDatabase.findIndex(item => item.title === titleText && item.author === authorText);
-        if(existIdx > -1) {
-            if(confirm("동일한 제목과 작곡가의 악보가 존재합니다. 덮어쓰시겠습니까?")) {
-                scoresDatabase[existIdx] = scoreData;
-                saveToFirebase(scoreData);
-                alert("기존 악보가 성공적으로 수정 및 업데이트되었습니다.");
-                switchTab('list');
-            }
-            return;
-        }
-        
-        scoresDatabase.push(scoreData);
-        saveToFirebase(scoreData);
-        alert("현재 악보가 목록에 성공적으로 저장되었습니다.");
-        switchTab('list');
-    }
+async function saveCurrentScoreToList() {
+    // 1. 에디터에서 데이터 추출
+    const titleText = document.getElementById('scoreTitle').innerText.trim() || "제목 없는 악보";
+    const authorText = document.getElementById('scoreAuthor').innerText.trim() || "미상";
+    const capoText = document.getElementById('capoDisplay').innerText.trim();
+    const staffHtml = document.getElementById('staff-container').innerHTML;
+    
+    // 2. [핵심] 수정 중이면 기존 ID 사용, 새로 저장이면 새 ID 생성
+    const scoreData = {
+        id: window.editingScoreId || Date.now().toString(),
+        title: titleText,
+        author: authorText,
+        capo: capoText,
+        innerStaff: staffHtml,
+        date: new Date().toLocaleDateString('ko-KR')
+    };
+    
+    // 3. 서버에 저장 (아까 수정한 2번 함수가 실행됨)
+    await saveToFirebase(scoreData);
+    
+    // 4. [중요] 저장 후 수정 모드 초기화! (안 하면 계속 덮어쓰기 모드가 됨)
+    window.editingScoreId = null; 
+    
+    alert("악보가 성공적으로 저장되었습니다.");
+    switchTab('list');
+}
+    
 
-    async function deleteScoreFromList(id, event) {
+    // [삭제] 파이어베이스에서 바로 삭제
+async function deleteScoreFromList(id, event) {
     if(event) event.stopPropagation();
-    if(!isAdminMode) return;
-    if(!confirm("서버에서 삭제하시겠습니까?")) return;
-
-    await db.collection('scores').doc(id).delete();
-    await loadFromFirebase(); // 삭제 후 목록 갱신
+    if(!confirm("서버에서 이 악보를 삭제하시겠습니까?")) return;
+    
+    try {
+        await db.collection('scores').doc(String(id)).delete();
+        await loadFromFirebase(); // 목록 강제 새로고침
+        alert("삭제되었습니다.");
+    } catch(e) {
+        console.error(e);
+        alert("삭제 실패: 권한이 없거나 서버 오류입니다.");
+    }
 }
 
     // ==================================================
@@ -650,17 +692,19 @@ async function saveToFirebase(scoreData) {
         filtered.forEach(item => {
             const card = document.createElement('div');
             card.className = 'score-card';
-            
-            // 카드를 그냥 클릭하면 즉시 인쇄 미리보기 작동
             card.onclick = () => directPrintRawData(item.title, item.author, item.capo, item.innerStaff);
             
-            // 관리자 모드일 때만 액션 패널(수정/삭제) 노출 - 3번 피드백 반영 (이모지 제거, 글자색 흰색 변경)
+            // 수정 부분: 파란색 바탕(수정) / 빨간색 바탕(삭제) 스타일 적용
             let actionPanelHtml = '';
             if(isAdminMode) {
                 actionPanelHtml = `
-                    <div class="card-action-panel">
-                        <button class="card-ctrl-inline-btn edit-trigger" onclick="loadScoreToEditor(${item.id}, event)">수정</button>
-                        <button class="card-ctrl-inline-btn" style="color: #ffffff;" onclick="deleteScoreFromList(${item.id}, event)">X</button>
+                    <div class="card-action-panel" style="display: flex; gap: 5px; margin-bottom: 5px;">
+                        <button class="card-ctrl-inline-btn" 
+                                style="background-color: #3498db; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;" 
+                                onclick="loadScoreToEditor('${item.id}', event)">수정</button>
+                        <button class="card-ctrl-inline-btn" 
+                                style="background-color: #e63946; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;" 
+                                onclick="deleteScoreFromList('${item.id}', event)">X</button>
                     </div>
                 `;
             }
@@ -675,21 +719,25 @@ async function saveToFirebase(scoreData) {
         });
     }
 
-    // 1번 피드백 반영 핵심: 오직 수정 버튼을 클릭했을 때만 편집 레이아웃으로 가져옴
-    function loadScoreToEditor(id, event) {
-        if(event) event.stopPropagation(); // 카드 클릭 이벤트(인쇄) 전파 전면 컷트
-        const target = scoresDatabase.find(item => item.id === id);
-        if (!target) return;
-        
-        document.getElementById('scoreTitle').innerText = target.title;
-        document.getElementById('scoreAuthor').innerText = target.author;
-        document.getElementById('capoDisplay').innerText = target.capo;
-        document.getElementById('staff-container').innerHTML = target.innerStaff;
-        selectedMeasure = null;
-        
-        alert(`"${target.title}" 악보 데이터를 수정 모드로 전환합니다. 편집 후 '목록에 저장'을 누르면 갱신됩니다.`);
-        switchTab('maker');
-    }
+// [수정] 악보 목록에서 수정 버튼 누를 시
+function loadScoreToEditor(id, event) {
+    if(event) event.stopPropagation();
+    
+    // 1. 기존 데이터 찾기
+    const target = scoresDatabase.find(s => String(s.id) === String(id));
+    if(!target) return alert("데이터를 찾을 수 없습니다.");
+    
+    // 2. [핵심] 수정 모드임을 알리는 ID 저장
+    window.editingScoreId = id; 
+    
+    // 3. 에디터에 내용 채우기
+    document.getElementById('scoreTitle').innerText = target.title;
+    document.getElementById('scoreAuthor').innerText = target.author;
+    document.getElementById('capoDisplay').innerText = target.capo;
+    document.getElementById('staff-container').innerHTML = target.innerStaff;
+    
+    switchTab('maker'); // 탭 이동
+}
 
     // 순수 원천 데이터 임시 인쇄 가동 펌프
     function directPrintRawData(title, author, capo, innerStaff) {
@@ -925,11 +973,11 @@ function handleFileSelect(files) {
 
     // [Ctrl + C] 마디 복사 엔진
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-        // 만약 현재 포커스된 곳이 글자 타이핑 중인 입력창이고, 드래그된 글자 선택 영역이 있다면 브라우저 기본 글자 복사를 허용
-        if (document.activeElement && document.activeElement.getAttribute('contenteditable') === 'true') {
-            if (window.getSelection().toString() !== "") return; 
-        }
+        const selection = window.getSelection().toString();
+        // 1. 가사창(lyrics-layer)이나 입력창에서 텍스트를 드래그해서 선택한 경우, 기본 동작(복사) 수행
+        if (selection !== "") return; 
         
+        // 2. 텍스트 선택이 없을 때는 기존처럼 마디 데이터 복사 로직 실행
         const targets = Array.from(document.querySelectorAll('.measure.selected, .measure.multi-selected'));
         if (targets.length === 0) return;
         
@@ -954,8 +1002,14 @@ function handleFileSelect(files) {
         });
     }
 
-    // [Ctrl + V] 마디 붙여넣기 엔진 (직전 상태 스냅샷 자동 백업)
+    // [Ctrl + V] 마디 붙여넣기 엔진
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        // [수정] 입력창에 포커스 중일 때, 텍스트 붙여넣기를 허용하기 위해 기본 동작 방해 안함
+        const active = document.activeElement;
+        if (active.getAttribute('contenteditable') === 'true') {
+            return;
+        }
+
         if (copiedMeasuresData.length === 0 || !selectedMeasure) return;
         
         e.preventDefault();
@@ -1053,15 +1107,15 @@ function handleFileSelect(files) {
     }
     });
 
+// ==================================================
+    // ⚙️ [시스템 최초 초기화 빌더] - [수정됨]
     // ==================================================
-    // ⚙️ [시스템 최초 초기화 빌더]
-    // ==================================================
-    window.onload = function() {
-    loadFromFirebase(); // 이제 서버에서 악보를 불러옵니다
-    fetchLessonsFromServer(); 
-    switchTab('list');
-    clearScoreToDefault(); 
-};
+    window.onload = async function() {
+        await loadFromFirebase(); // 서버 데이터 로드 완료까지 대기
+        await fetchLessonsFromServer(); // 레슨 데이터 로드 완료까지 대기
+        switchTab('list');
+        clearScoreToDefault(); 
+    };
 </script>
 </body>
 </html>
