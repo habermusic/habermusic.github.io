@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>티처스코어 v3.6.8 (Easy Sheet Maker & Download)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght=400;700;900&display=swap');
+        
+        /* ==================================================
+           👑 [인쇄 시 순수 A4 100% 밀착 교정 규칙]
+           ================================================== */
+        @page { size: A4; margin: 0; }
+        @media print {
+            html, body { background: white !important; margin: 0 !important; padding: 0 !important; height: auto !important; overflow: visible !important; display: block !important; }
+            #sidebar, #top-nav-bar, .tab-btn, #view-list, #view-lesson, .admin-panel-box { display: none !important; }
+            #content-wrapper { margin: 0 !important; padding: 0 !important; width: 210mm !important; height: auto !important; overflow: visible !important; display: block !important; }
+            #main-area { margin: 0 !important; padding: 0 !important; width: 210mm !important; height: auto !important; overflow: visible !important; display: block !important; background: none !important; }
+            #view-maker { display: block !important; width: 210mm !important; margin: 0 !important; padding: 0 !important; }
+            .score-paper { 
+                box-shadow: none !important; border: none !important; 
+                width: 210mm !important; height: 297mm !important; 
+                padding: 15mm 20mm !important; overflow: hidden !important;
+                position: relative !important; top: 0 !important; left: 0 !important; margin: 0 !important;
+                page-break-inside: avoid !important; page-break-after: avoid !important;
+                -webkit-print-color-adjust: exact; print-color-adjust: exact;
+            }
+            [contenteditable="true"]:empty:before { content: "" !important; display: none !important; }
+            .measure.selected::before { display: none !important; content: none !important; }
+            .measure.selected { background: none !important; background-color: transparent !important; outline: none !important; }
+            .staff-line, .measure, .measure::after, .staff-line::before, .rehearsal-mark { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+
+        /* ==================================================
+           🎨 [화면 레이아웃 스타일 구조]
+           ================================================== */
+        body { font-family: 'Noto Sans KR', sans-serif; background: #2c3e50; display: flex; margin: 0; padding: 0; min-width: 320px; height: 100vh; overflow: hidden; }
+        
+        #sidebar { width: 280px; background: #34495e; color: white; padding: 20px; height: 100vh; position: fixed; overflow-y: auto; box-sizing: border-box; z-index: 100; }
+        
+        .sidebar-title { font-size: 22px; color: #e67e22; margin-top: 0; margin-bottom: 5px; font-weight: 900; cursor: pointer; display: inline-block; user-select: none; }
+        .sidebar-title:hover { color: #f39c12; }
+        .admin-status { font-size: 11px; color: #2ecc71; font-weight: bold; margin-bottom: 20px; display: none; }
+
+        .control-btn { width: 100%; padding: 12px; margin-bottom: 10px; border: none; color: white; font-weight: 700; border-radius: 4px; cursor: pointer; box-sizing: border-box; font-size: 14px; text-align: center; display: block; }
+        
+        .admin-only-ui { display: none; } 
+        .admin-mode-active .admin-only-ui { display: block; }
+
+        .tool-group { margin-bottom: 20px; border-bottom: 1px solid #5d6d7e; padding-bottom: 15px; }
+        .tool-group h3 { font-size: 14px; color: #bdc3c7; margin-bottom: 10px; }
+        .symbol-btn { background: #5d6d7e; border: none; color: white; padding: 8px; margin: 2px; cursor: pointer; border-radius: 4px; width: 50px; font-size: 18px; }
+        .num-input { background: #5d6d7e; border: 1px solid #bdc3c7; color: white; padding: 8px; width: 60px; border-radius: 4px; text-align: center; font-size: 16px; }
+
+        .shortcut-guide { margin-top: 10px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px; font-size: 12px; line-height: 1.7; color: #ecf0f1; }
+        .shortcut-guide b { color: #f1c40f; display: inline-block; width: 85px; }
+
+        .score-paper { 
+            width: 210mm; height: 297mm; padding: 15mm 20mm; background: #fff; 
+            box-shadow: 0 0 20px rgba(0,0,0,0.5); box-sizing: border-box; 
+            position: relative; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .header-box { border: 2.5px solid #000; padding: 20px; margin-bottom: 15px; display: flex; flex-direction: column; position: relative; min-height: 80px; }
+        .title { font-size: 32px; font-weight: 900; outline: none; width: 80%; color: #000; }
+        .author { font-size: 18px; color: #333; outline: none; align-self: flex-end; position: absolute; bottom: 15px; right: 20px; text-align: right; }
+        .capo-area { font-size: 15px; font-weight: 700; margin-top: 1mm; margin-bottom: 15mm; padding-right: 5px; outline: none; text-align: right; align-self: flex-end; color: #000; }
+
+        [contenteditable="true"]:empty:before { content: attr(data-placeholder); color: #ccc; font-weight: normal; }
+
+        .staff-line { display: flex; width: 100%; height: 2px; background: #000 !important; margin-bottom: 110px; position: relative; }
+        .staff-line::before { content: ''; position: absolute; left: 0px; top: -18px; height: 38px; width: 2px; background: #000 !important; z-index: 20; }
+        
+        .measure { flex: 1; position: relative; height: 2px; cursor: pointer; padding: 18px 0 20px 0; margin-top: -18px; }
+        .measure::after { content: ''; position: absolute; right: -2px; top: 0px; height: 38px; width: 2px; background: #000 !important; z-index: 10; }
+        .measure.selected::before, .measure.multi-selected::before { 
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 38px; 
+            background-color: rgba(52, 152, 219, 0.25) !important; z-index: 1; pointer-events: none; 
+        }
+
+        .rehearsal-mark { 
+            position: absolute; top: -52px; left: -5px; background: #000 !important; color: #fff !important; 
+            min-width: 22px; height: 22px; display: none; align-items: center; justify-content: center; 
+            font-weight: 900; font-size: 12px; outline: none; z-index: 30; padding: 0 6px; border-radius: 4px;
+        }
+        .has-rehearsal .rehearsal-mark { display: flex; }
+
+        .chord-container { position: absolute; top: -30px; width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); text-align: left; z-index: 5; }
+        .chord-slot { padding-left: 5px; color: #000; font-weight: 700; font-size: 19px; outline: none; height: 25px; line-height: 25px; }
+        
+        .lyrics-layer { position: absolute; top: 38px; width: 100%; text-align: left; padding-left: 5px; color: #333; font-size: 16px; outline: none; min-height: 1.2em; line-height: 1.2; }
+        .copyright { position: absolute; bottom: 10mm; left: 0; text-align: center; font-size: 9px; color: #bdc3c7; width: 100%; letter-spacing: 1px; }
+        
+        .repeat-dot { position: absolute; top: 19px; transform: translateY(-50%); font-size: 20px; font-weight: bold; pointer-events: none; display: none; z-index: 20; }
+        .dot-left { left: 6px; color: #000; } .dot-right { right: 6px; color: #000; }
+        .has-dot-left .dot-left { display: block; } .has-dot-right .dot-right { display: block; }
+        
+        .measure.bar-double::after { width: 5px !important; background: none !important; border-left: 2px solid #000; border-right: 2px solid #000; right: -4px; }
+        .measure.bar-end::after { width: 10px !important; background: #000 !important; border-left: 3px solid #fff; right: -8px; }
+
+        #content-wrapper { flex: 1; margin-left: 280px; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        #top-nav-bar { background: #2c3e50; padding: 15px 40px 0 40px; display: flex; border-bottom: 2px solid #34495e; align-items: center; justify-content: center; position: relative; }
+        .tab-header-group { display: flex; gap: 8px; justify-content: center; }
+        .tab-btn { padding: 12px 30px; background: #34495e; color: #bdc3c7; font-weight: 700; border-radius: 8px 8px 0 0; font-size: 15px; border: none; cursor: pointer; transition: background 0.2s; }
+        .tab-btn.active { background: #fff; color: #2c3e50; }
+        
+        #main-area { flex: 1; padding: 30px 40px; display: flex; justify-content: center; overflow-y: auto; background: #2c3e50; }
+        .tab-view { display: none; width: 100%; }
+        .tab-view.active { display: flex; justify-content: center; }
+
+        .list-container { width: 100%; max-width: 900px; background: #34495e; padding: 30px; border-radius: 8px; color: white; box-sizing: border-box; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
+        .search-input { flex: 1; padding: 12px; border-radius: 4px; border: none; font-size: 16px; font-weight: 700; outline: none; color: #000; }
+        .score-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; margin-top: 10px; }
+        
+        .score-card { background: #2c3e50; border: 2px solid #5d6d7e; border-radius: 6px; padding: 20px; cursor: pointer; transition: all 0.2s; position: relative; }
+        .score-card:hover { border-color: #e67e22; background: #243443; }
+        .card-title { font-size: 18px; font-weight: 900; color: #fff; margin-bottom: 8px; padding-right: 50px; word-break: break-all; }
+        .card-author { font-size: 14px; color: #bdc3c7; font-weight: 500; }
+        .card-date { font-size: 11px; color: #7f8c8d; position: absolute; bottom: 10px; right: 15px; }
+        
+        /* 카드 내 제어 액션 패널 버튼 상단 배치 크기 조정 */
+        .card-action-panel { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; z-index: 10; }
+        .card-ctrl-inline-btn { background: #c0392b; color: #fff; border: none; padding: 4px 7px; font-size: 11px; font-weight: 700; border-radius: 3px; cursor: pointer; }
+        .card-ctrl-inline-btn.edit-trigger { background: #2980b9; }
+        .card-ctrl-inline-btn.edit-trigger:hover { background: #3498db; }
+        .card-ctrl-inline-btn:hover { background: #e74c3c; }
+
+        .lesson-container { width: 100%; max-width: 900px; background: #34495e; padding: 30px; border-radius: 8px; color: white; box-sizing: border-box; }
+        .admin-panel-box { background: #2c3e50; padding: 18px; border-radius: 6px; margin-bottom: 25px; border: 2px dashed #e67e22; }
+        .admin-panel-box h4 { margin-top: 0; color: #e67e22; font-size: 15px; margin-bottom: 12px; }
+        
+        .drop-zone { border: 2px dashed #3498db; background: rgba(52, 152, 219, 0.1); border-radius: 6px; padding: 25px; text-align: center; font-size: 14px; font-weight: bold; color: #3498db; cursor: pointer; margin-bottom: 12px; transition: all 0.2s; }
+        .drop-zone.dragover { background: rgba(52, 152, 219, 0.25); border-color: #2ecc71; color: #2ecc71; }
+        
+        .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .form-input { flex: 1; padding: 10px; border-radius: 4px; border: none; outline: none; font-size: 14px; background: #fff; color: #000; font-weight: bold; }
+        .form-input:disabled { background: #bdc3c7; color: #7f8c8d; cursor: not-allowed; }
+        
+        .lesson-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; }
+        .lesson-card { background: #2c3e50; border-radius: 6px; padding: 20px; border-left: 5px solid #3498db; cursor: pointer; position: relative; transition: background 0.15s; }
+        .lesson-card:hover { background: #243443; border-left-color: #e67e22; }
+        .lesson-card h4 { margin: 0 0 10px 0; font-size: 16px; color: #fff; padding-right: 40px; word-break: break-all; }
+        .lesson-card p { margin: 0; font-size: 13px; color: #bdc3c7; line-height: 1.4; margin-bottom: 12px; border-top: 1px solid #34495e; padding-top: 8px; }
+        .lesson-file-link { font-size: 12px; color: #2ecc71; font-weight: bold; text-decoration: underline; word-break: break-all; }
+        
+        /* 레슨 관리자 패널 내 버튼 UI 수정 */
+        .lesson-ctrl-inline-btn { background: #c0392b; color: #fff; border: none; padding: 4px 7px; font-size: 11px; font-weight: 700; border-radius: 3px; cursor: pointer; }
+        .lesson-ctrl-inline-btn.edit-trigger { background: #2980b9; }
+        .lesson-ctrl-inline-btn.edit-trigger:hover { background: #3498db; }
+        .lesson-ctrl-inline-btn:hover { background: #e74c3c; }
+
+       /* ⚡ 기존 스타일 무력화 및 새 디자인 적용 */
+
+/* 1. 기본 마디 레이아웃 초기화 */
+.measure {
+    border-right: none !important;
+    padding-right: 0 !important;
+    overflow: visible !important;
+}
+
+/* 2. 일반 세로줄 */
+.measure::after {
+    width: 2px !important;
+    background: #000 !important;
+    right: -2px !important;
+    top: 0px !important;
+    height: 38px !important;
+}
+
+/* 3. [끝세로줄] 두꺼운선(4px)이 먼저 오고, 간격(3px) 뒤에 얇은선(2px) */
+.measure.bar-end::after {
+    width: 3px !important; /* 전체 너비 */
+    background: none !important;
+    border-left: 4px solid #000 !important; /* 두꺼운 선 */
+    border-right: 2px solid #000 !important; /* 얇은 선 */
+    right: -2px !important;
+}
+
+/* 4. [겹세로줄]  */
+.measure.bar-double::after {
+    width: 3px !important; /* 간격을 좁힘 */
+    background: none !important;
+    border-left: 2px solid #000 !important;
+    border-right: 2px solid #000 !important;
+    right: -2px !important;
+}
+
+/* 도돌이표 점 디자인 (크기 키우고 간격 50% 더 확대) */
+.repeat-dot {
+    font-size: 25px !important;
+    line-height: 40px !important; /* 간격 대폭 확대 */
+    top: 45% !important;
+    transform: translateY(-49%) !important;
+}
+
+/* 점 위치 재조정 (세로줄 안쪽으로) */
+.dot-left { left: 8px !important; }
+.dot-right { right: 8px !important; }
+
+/* 기호 및 마크 버튼들 공통 스타일 */
+.symbol-row {
+    display: flex;
+    gap: 5px; /* 버튼 사이 간격 */
+    margin-bottom: 5px;
+}
+
+.symbol-btn {
+    height: 40px;      /* 높이 통일 */
+    border: none;
+    border-radius: 4px;
+    background: #5d6d7e;
+    color: white;
+    cursor: pointer;
+    flex: 1;           /* 가로 공간을 균등하게 차지 */
+    font-size: 14px;
+}
+/* 도돌이표 버튼 아이콘 키우기 */
+.repeat-btn {
+    font-size: 16px; /* 아이콘 크기 확대 */
+    flex: 1;         /* 상대적으로 좁게 */
+}
+
+/* 리허설 마크 버튼 비중 확대 */
+.rehearsal-btn {
+    flex: 2.5;       /* 리허설 버튼을 도돌이표보다 2.5배 넓게 */
+    font-size: 14px;
+}
+
+.symbol-row {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 5px;
+}
+    </style>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+</head>
+<body>
+
+<div id="sidebar">
+    <div class="sidebar-title" onclick="triggerAdminMode()">티처스코어</div>
+    <div id="adminBadge" class="admin-status">[관리자 모드]</div>
+    
+    <div id="maker-exclusive-controls" style="display:none;">
+        <button class="control-btn" style="background:#2ecc71;" onclick="createNewScoreFresh()">새 악보 만들기</button>
+        <button class="control-btn" style="background:#e67e22;" onclick="saveAsPdf()">Pdf로 저장</button>
+        <button class="control-btn admin-only-ui" style="background:#2980b9; margin-bottom:25px;" onclick="saveCurrentScoreToList()">📌 현재 악보를 목록에 저장</button>
+        
+<div class="tool-group">
+    <h3>기호 및 마크</h3>
+    <div class="symbol-row">
+        <button class="symbol-btn rehearsal-btn" onclick="toggleRehearsal()">리허설 마크</button>
+        <button class="symbol-btn repeat-btn" onclick="toggleDot('left')">𝄆</button>
+        <button class="symbol-btn repeat-btn" onclick="toggleDot('right')">𝄇</button>
+    </div>
+</div>
+
+<div class="tool-group">
+    <h3>세로줄 관리</h3>
+    <div class="symbol-row">
+        <button class="symbol-btn" onclick="toggleBar('double')">겹세로줄</button>
+        <button class="symbol-btn" onclick="toggleBar('end')">끝세로줄</button>
+    </div>
+</div>
+
+        <div class="tool-group">
+            <h3>가사 설정</h3>
+            <input type="number" id="fontSizeInput" class="num-input" value="16" onchange="changeFontSize(this.value)"> px
+        </div>
+
+        <div class="tool-group">
+            <h3>마디 및 줄 관리</h3>
+            <button class="control-btn" style="background:#3498db" onclick="addMeasureBtn()">마디 추가 (+)</button>
+            <button class="control-btn" style="background:#e63946" onclick="deleteMeasureBtn()">현재 마디 삭제 (-)</button>
+            <button class="control-btn" style="background:#9b59b6" onclick="toggleLineBreak()">줄바꿈 토글 (Enter)</button>
+        </div>
+
+        <div class="tool-group" style="border:none;">
+            <h3>단축키</h3>
+<div class="shortcut-guide">
+                <b>Enter</b> 줄바꿈 (마디 선택 시)<br>
+                <b>우클릭</b> 마디 추가 (뒤쪽)<br>
+                <b>Shift+우클릭</b> 현재 마디 삭제<br>
+                <b>Shift+좌클릭</b> 여러 마디 선택<br>
+                <b>Ctrl+C, V</b> 마디 복사/붙여넣기
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="content-wrapper">
+    
+    <div id="top-nav-bar">
+        <div class="tab-header-group">
+            <button id="tab-indicator-list" class="tab-btn" onclick="switchTab('list')">악보 목록</button>
+            <button id="tab-indicator-maker" class="tab-btn" onclick="switchTab('maker')">악보 제작</button>
+            <button id="tab-indicator-lesson" class="tab-btn" onclick="switchTab('lesson')">레슨 자료</button>
+        </div>
+    </div>
+
+    <div id="main-area">
+        
+        <div id="view-list" class="tab-view">
+            <div class="list-container">
+                <div class="search-box">
+                    <input type="text" id="searchInput" class="search-input" placeholder="검색할 악보 제목 또는 작곡가를 입력하세요..." oninput="renderScoreList()">
+                </div>
+                <div id="scoreGrid" class="score-grid"></div>
+            </div>
+        </div>
+
+        <div id="view-maker" class="tab-view">
+            <div class="score-paper">
+                <div class="header-box">
+                    <div id="scoreTitle" class="title" contenteditable="true" data-placeholder="(제목을 입력하세요)"></div>
+                    <div id="scoreAuthor" class="author" contenteditable="true" data-placeholder="(작곡가 입력)"></div>
+                </div>
+                <div id="capoDisplay" class="capo-area" contenteditable="true" data-placeholder="(Capo 입력)"></div>
+                
+                <div id="staff-container">
+                    <div class="staff-line"></div>
+                </div>
+                <div class="copyright">Copyright© by Changmin Heo</div>
+            </div>
+        </div>
+
+        <div id="view-lesson" class="tab-view">
+            <div class="lesson-container">
+                <div class="admin-panel-box admin-only-ui">
+                    <h4>새 레슨 PDF 파일 업로드 (관리자 전용)</h4>
+                    <div id="dropZone" class="drop-zone">
+                        여기에 실제 레슨 PDF 교재 파일을 드래그하여 떨어뜨리거나 클릭해서 선택하세요.
+                    </div>
+                    <input type="file" id="fileHiddenInput" accept=".pdf" style="display:none;" onchange="handleFileSelect(this.files)">
+                    
+                    <div class="form-row">
+                        <input type="text" id="lesTitle" class="form-input" placeholder="교재 타이틀 명칭을 입력하세요">
+                        <input type="text" id="lesPdf" class="form-input" placeholder="선택된 파일 없음" disabled>
+                    </div>
+                    <div class="form-row">
+                        <input type="text" id="lesDesc" class="form-input" placeholder="간략한 요약 강의 설명 단락을 작성하세요">
+                    </div>
+                    <button class="control-btn" id="btnLessonSubmit" style="background:#e67e22; margin-bottom:0;" onclick="addNewLessonData()">업로드 완료 및 데이터베이스 등록</button>
+                </div>
+
+                <div id="lessonGrid" class="lesson-grid"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // 🔥 [교체용] 사장님의 실제 파이어베이스 설정값 완벽 매칭 세트
+    const firebaseConfig = {
+        apiKey: "AIzaSyBxCgtyDgUykZGyO23w-9KEZXpb6RdO1e8",
+        authDomain: "techerscore.firebaseapp.com",
+        projectId: "techerscore",
+        storageBucket: "techerscore.firebasestorage.app", // 👈 구글 스토리지 완벽 연동 주소!
+        messagingSenderId: "230238519756",
+        appId: "1:230238519756:web:ca2aa79588c68d9dd29d69"
+    };
+    
+    // 시스템 초기화 시동기
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    // ==================================================
+    // 💾 [글로벌 코어 상태 제어 필드]
+    // ==================================================
+    let selectedMeasure = null;
+    let startMeasure = null;      // 👈 [추가] 다중 선택의 시작점 마디
+    let copiedMeasuresData = [];  // 👈 [추가] Ctrl+C로 복사한 마디 데이터 저장소
+    let undoMeasuresBackup = null;
+    let isAdminMode = false;
+    let scoresDatabase = [];
+    let lessonDatabase = [];
+    let editingScoreId = null;
+    
+    let uploadedFileRawData = null;
+    let uploadedFileName = "";
+    
+    // 기본 탑재 고정 더미 데이터 세트
+    const defaultLessons = [
+        { id: 101, title: "오픈코드 기초 마스터 교재", desc: "통기타 초보 유저들을 위한 필수 개방현 오픈코드 손모양 지도법.", file: "open_chord_basic.pdf", rawBlobUrl: "" },
+        { id: 102, title: "네오소울 리듬 반주법", desc: "싱코페이션 리듬과 텐션 코드가 가미된 정통 알앤비 스타일 트레이닝 교재.", file: "rnb_rhythm_master.pdf", rawBlobUrl: "" }
+    ];
+
+    // ==================================================
+    // 🔐 [관리자 인증 관리 모듈]
+    // ==================================================
+    function triggerAdminMode() {
+        if(isAdminMode) {
+            if(confirm("일반 사용자 모드로 전환하시겠습니까?")) {
+                isAdminMode = false;
+                localStorage.removeItem('ts_admin_session'); // 세션 파기
+                document.body.classList.remove('admin-mode-active');
+                document.getElementById('adminBadge').style.display = 'none';
+                clearScoreToDefault();
+                renderScoreList();
+                renderLessonList();
+            }
+            return;
+        }
+        const pw = prompt("관리자 접속 비밀번호를 입력하세요:");
+        if (pw === "5153") {
+            isAdminMode = true;
+            localStorage.setItem('ts_admin_session', 'active'); // 세션 주입
+            document.body.classList.add('admin-mode-active');
+            document.getElementById('adminBadge').style.display = 'block';
+            alert("관리자 권한이 성공적으로 인증되었습니다.");
+            renderScoreList();
+            renderLessonList();
+        } else if (pw !== null) {
+            alert("잘못된 비밀번호입니다.");
+        }
+    }
+
+    // ==================================================
+// 💾 [수정된 데이터베이스 동기화 커널 - Firebase 연동]
+// ==================================================
+
+// 1. 악보 목록을 서버에서 불러오기
+async function loadFromFirebase() {
+    try {
+        const snapshot = await db.collection('scores').get();
+        // 👈 [확인] 각 문서의 고유 doc.id를 객체 내부 id 필드로 명확히 매핑
+        scoresDatabase = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderScoreList();
+        console.log("악보 목록 서버 로드 완료");
+    } catch (e) {
+        console.error("악보 로드 실패:", e);
+    }
+}
+
+// 2. 파이어베이스 실제 저장/수정 트랜잭션 커널
+async function saveToFirebase() {
+    const titleText = document.getElementById('scoreTitle').innerText.trim() || "제목 없는 악보";
+    const authorText = document.getElementById('scoreAuthor').innerText.trim() || "미상";
+    
+    const data = {
+        title: titleText,
+        author: authorText,
+        capo: document.getElementById('capoDisplay').innerText,
+        innerStaff: document.getElementById('staff-container').innerHTML,
+        date: new Date().toLocaleDateString('ko-KR')
+    };
+
+    try {
+        if (editingScoreId) {
+            // --- CASE A: 수정 완료 모드 ---
+            await db.collection('scores').doc(String(editingScoreId)).update(data);
+            alert("악보 수정이 완료되었습니다.");
+        } else {
+            // --- CASE B: 신규 악보 저장 모드 ---
+            await db.collection('scores').add(data);
+            alert("새 악보가 저장되었습니다.");
+        }
+    } catch(e) {
+        console.error(e);
+        alert("저장 실패: 권한이 없거나 서버 오류입니다.");
+        return;
+    }
+
+    // 상태 변수 및 버튼 디자인 원상 복구
+    editingScoreId = null; 
+    const saveBtn = document.querySelector('.admin-only-ui[onclick*="saveCurrentScoreToList"]');
+    if (saveBtn) saveBtn.innerText = "📌 현재 악보를 목록에 저장";
+
+    await loadFromFirebase(); // 👈 [버그 1 픽스] 저장 직후 곧바로 실시간 서버 데이터를 동기화하여 새로고침 불필요하게 만듦
+    switchTab('list');
+}
+
+// 3. 사이드바 저장 버튼 클릭 시 트리거 핸들러
+async function saveCurrentScoreToList() {
+    await saveToFirebase(); // 기존에 따로 놀던 로직을 위 통합 함수로 일원화 (버그 2, 3 차단)
+}
+
+function saveLessonToLocalStorage() {
+    localStorage.setItem('teacherscore_lesson_db', JSON.stringify(lessonDatabase));
+}
+
+    // ==================================================
+    // 🎼 [악보 드로잉 및 제어 코어]
+    // ==================================================
+    function getMeasureHTML() {
+        const currentSize = document.getElementById('fontSizeInput') ? document.getElementById('fontSizeInput').value : 16;
+        return `
+            <div class="measure" onclick="selectMeasure(this)" oncontextmenu="handleRightClick(event, this)">
+                <div class="rehearsal-mark" contenteditable="true" data-placeholder=""></div>
+                <div class="repeat-dot dot-left">:</div><div class="repeat-dot dot-right">:</div>
+                <div class="chord-container">
+                    <div class="chord-slot" contenteditable="true"></div><div class="chord-slot" contenteditable="true"></div><div class="chord-slot" contenteditable="true"></div><div class="chord-slot" contenteditable="true"></div>
+                </div>
+                <div class="lyrics-layer" contenteditable="true" data-placeholder="가사 입력" style="font-size: ${currentSize}px;"></div>
+            </div>
+        `;
+    }
+
+    function initEmptyStaff() {
+        const container = document.getElementById('staff-container');
+        container.innerHTML = '<div class="staff-line"></div>';
+        const line = container.querySelector('.staff-line');
+        for (let i = 0; i < 4; i++) {
+            line.insertAdjacentHTML('beforeend', getMeasureHTML());
+        }
+    }
+
+    function clearScoreToDefault() {
+        document.getElementById('scoreTitle').innerText = '';
+        document.getElementById('scoreAuthor').innerText = '';
+        document.getElementById('capoDisplay').innerText = '';
+        initEmptyStaff();
+        selectedMeasure = null;
+        startMeasure = null;
+    }
+
+    function createNewScoreFresh() {
+        // 👈 [수정] 수정 모드일 때 경고창 로직 반영
+        if (editingScoreId) {
+            if (!confirm("수정 중인 악보가 있습니다. 저장하지 않고 새 악보를 만드시겠습니까?")) {
+                return;
+            }
+        } else {
+            if(!confirm("작성 중이던 악보가 초기화됩니다. 새 악보를 만드시겠습니까?")) {
+                return;
+            }
+        }
+        
+        editingScoreId = null; // 수정 상태 해제
+        
+        // 사이드바 버튼을 원래대로 복구
+        const saveBtn = document.querySelector('.admin-only-ui[onclick*="saveCurrentScoreToList"]');
+        if (saveBtn) {
+            saveBtn.innerText = "📌 현재 악보를 목록에 저장";
+        }
+        
+        clearScoreToDefault();
+    }
+
+    // 🎯 [업그레이드] Shift+클릭 연동 다중 마디 선택 처리 함수 (아래쪽 중복 let 완벽 제거본)
+    function selectMeasure(el) {
+        if (window.event && window.event.shiftKey && startMeasure) {
+            const allMeasures = Array.from(document.querySelectorAll('.measure'));
+            const startIndex = allMeasures.indexOf(startMeasure);
+            const endIndex = allMeasures.indexOf(el);
+            
+            if (startIndex !== -1 && endIndex !== -1) {
+                allMeasures.forEach(m => {
+                    m.classList.remove('selected');
+                    m.classList.remove('multi-selected');
+                });
+                
+                const minIdx = Math.min(startIndex, endIndex);
+                const maxIdx = Math.max(startIndex, endIndex);
+                
+                for (let i = minIdx; i <= maxIdx; i++) {
+                    allMeasures[i].classList.add('multi-selected');
+                }
+                
+                selectedMeasure = el;
+            }
+        } else {
+            const allMeasures = document.querySelectorAll('.measure');
+            allMeasures.forEach(m => {
+                m.classList.remove('selected');
+                m.classList.remove('multi-selected');
+            });
+            
+            selectedMeasure = el;
+            startMeasure = el;
+            selectedMeasure.classList.add('selected');
+        }
+    }
+
+    function toggleRehearsal() {
+        if (!selectedMeasure) return;
+        selectedMeasure.classList.toggle('has-rehearsal');
+        if (selectedMeasure.classList.contains('has-rehearsal')) {
+            const r = selectedMeasure.querySelector('.rehearsal-mark');
+            r.focus();
+        }
+    }
+
+    function toggleDot(dir) {
+        if (!selectedMeasure) return;
+        selectedMeasure.classList.toggle('has-dot-' + dir);
+    }
+
+    function toggleBar(type) {
+        if (!selectedMeasure) return;
+        if (type === 'double') {
+            selectedMeasure.classList.remove('bar-end');
+            selectedMeasure.classList.toggle('bar-double');
+        } else if (type === 'end') {
+            selectedMeasure.classList.remove('bar-double');
+            selectedMeasure.classList.toggle('bar-end');
+        }
+    }
+
+    function changeFontSize(val) {
+        document.querySelectorAll('.lyrics-layer').forEach(el => el.style.fontSize = val + 'px');
+    }
+
+    function addMeasureBtn() {
+        if (selectedMeasure) selectedMeasure.insertAdjacentHTML('afterend', getMeasureHTML());
+    }
+
+    function deleteMeasureBtn() {
+        if (!selectedMeasure) return;
+        const p = selectedMeasure.parentElement;
+        selectedMeasure.remove();
+        if (p.children.length === 0 && document.querySelectorAll('.staff-line').length > 1) p.remove();
+        selectedMeasure = null;
+    }
+
+    function handleRightClick(e, el) {
+        e.preventDefault();
+        selectMeasure(el);
+        if (e.shiftKey) {
+            deleteMeasureBtn();
+        } else {
+            const num = prompt("추가할 마디 수:", "1");
+            if (num > 0) {
+                for(let i=0; i<num; i++) el.insertAdjacentHTML('afterend', getMeasureHTML());
+            }
+        }
+    }
+
+    function toggleLineBreak() {
+        if (!selectedMeasure) return;
+        const currentLine = selectedMeasure.parentElement;
+        const allMeasures = Array.from(currentLine.children);
+        const idx = allMeasures.indexOf(selectedMeasure);
+        if (idx < allMeasures.length - 1) {
+            const newLine = document.createElement('div');
+            newLine.className = 'staff-line';
+            allMeasures.slice(idx + 1).forEach(m => newLine.appendChild(m));
+            currentLine.after(newLine);
+        } else if (currentLine.nextElementSibling) {
+            const nextLine = currentLine.nextElementSibling;
+            Array.from(nextLine.children).forEach(m => currentLine.appendChild(m));
+            nextLine.remove();
+        }
+    }
+
+    // ==================================================
+    // 🌐 [라우터 탭 제어 및 데이터 로드 연동]
+    // ==================================================
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-view').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById('view-' + tabId).classList.add('active');
+        document.getElementById('tab-indicator-' + tabId).classList.add('active');
+        
+        if (tabId === 'maker') {
+            document.getElementById('maker-exclusive-controls').style.display = 'block';
+        } else {
+            document.getElementById('maker-exclusive-controls').style.display = 'none';
+        }
+        
+        if (tabId === 'list') renderScoreList();
+        if (tabId === 'lesson') {
+            renderLessonList();
+            setupDropZone();
+        }
+    }
+
+async function saveCurrentScoreToList() {
+    // 1. 에디터에서 데이터 추출
+    const titleText = document.getElementById('scoreTitle').innerText.trim() || "제목 없는 악보";
+    const authorText = document.getElementById('scoreAuthor').innerText.trim() || "미상";
+    const capoText = document.getElementById('capoDisplay').innerText.trim();
+    const staffHtml = document.getElementById('staff-container').innerHTML;
+    
+    // 2. [핵심] 수정 중이면 기존 ID 사용, 새로 저장이면 새 ID 생성
+    const scoreData = {
+        id: window.editingScoreId || Date.now().toString(),
+        title: titleText,
+        author: authorText,
+        capo: capoText,
+        innerStaff: staffHtml,
+        date: new Date().toLocaleDateString('ko-KR')
+    };
+    
+    // 3. 서버에 저장 (아까 수정한 2번 함수가 실행됨)
+    await saveToFirebase(scoreData);
+    
+    // 4. [중요] 저장 후 수정 모드 초기화! (안 하면 계속 덮어쓰기 모드가 됨)
+    window.editingScoreId = null; 
+    
+    alert("악보가 성공적으로 저장되었습니다.");
+    switchTab('list');
+}
+    
+
+    // [삭제] 파이어베이스에서 바로 삭제
+async function deleteScoreFromList(id, event) {
+    if(event) event.stopPropagation();
+    if(!confirm("서버에서 이 악보를 삭제하시겠습니까?")) return;
+    
+    try {
+        await db.collection('scores').doc(String(id)).delete();
+        await loadFromFirebase(); // 목록 강제 새로고침
+        alert("삭제되었습니다.");
+    } catch(e) {
+        console.error(e);
+        alert("삭제 실패: 권한이 없거나 서버 오류입니다.");
+    }
+}
+
+    // ==================================================
+    // 🖨️ [악보 목록 렌더링 및 프리뷰 코어 메커니즘]
+    // ==================================================
+    function renderScoreList() {
+        const grid = document.getElementById('scoreGrid');
+        grid.innerHTML = '';
+        const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
+        
+        const filtered = scoresDatabase.filter(item => {
+            return item.title.toLowerCase().includes(keyword) || item.author.toLowerCase().includes(keyword);
+        });
+        
+        if(filtered.length === 0) {
+            grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:#bdc3c7; padding:40px 0;">등록된 악보가 없거나 검색 결과가 없습니다.</div>`;
+            return;
+        }
+        
+        filtered.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'score-card';
+            card.onclick = () => directPrintRawData(item.title, item.author, item.capo, item.innerStaff);
+            
+            // 수정 부분: 파란색 바탕(수정) / 빨간색 바탕(삭제) 스타일 적용
+            let actionPanelHtml = '';
+            if(isAdminMode) {
+                actionPanelHtml = `
+                    <div class="card-action-panel" style="display: flex; gap: 5px; margin-bottom: 5px;">
+                        <button class="card-ctrl-inline-btn" 
+                                style="background-color: #3498db; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;" 
+                                onclick="loadScoreToEditor('${item.id}', event)">수정</button>
+                        <button class="card-ctrl-inline-btn" 
+                                style="background-color: #e63946; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;" 
+                                onclick="deleteScoreFromList('${item.id}', event)">X</button>
+                    </div>
+                `;
+            }
+            
+            card.innerHTML = `
+                ${actionPanelHtml}
+                <div class="card-title">${item.title}</div>
+                <div class="card-author">${item.author}</div>
+                <div class="card-date">${item.date}</div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+// [수정] 악보 목록에서 수정 버튼 누를 시
+function loadScoreToEditor(id, event) {
+    if(event) event.stopPropagation();
+    
+    const target = scoresDatabase.find(s => String(s.id) === String(id));
+    if(!target) return alert("데이터를 찾을 수 없습니다.");
+    
+    editingScoreId = id; // 전역 변수에 ID 저장
+    
+    document.getElementById('scoreTitle').innerText = target.title;
+    document.getElementById('scoreAuthor').innerText = target.author;
+    document.getElementById('capoDisplay').innerText = target.capo;
+    document.getElementById('staff-container').innerHTML = target.innerStaff;
+    
+    // 👈 [버그 2 픽스] 수정 버튼 누를 시 사이드바 버튼 텍스트를 "수정 완료"로 강제 변형
+    const saveBtn = document.querySelector('.admin-only-ui[onclick*="saveCurrentScoreToList"]');
+    if (saveBtn) {
+        saveBtn.innerText = "📌 수정 완료";
+    }
+    
+    switchTab('maker');
+}
+
+    // 순수 원천 데이터 임시 인쇄 가동 펌프
+    function directPrintRawData(title, author, capo, innerStaff) {
+        const backupTitle = document.getElementById('scoreTitle').innerText;
+        const backupAuthor = document.getElementById('scoreAuthor').innerText;
+        const backupCapo = document.getElementById('capoDisplay').innerText;
+        const backupStaff = document.getElementById('staff-container').innerHTML;
+        
+        document.getElementById('scoreTitle').innerText = title;
+        document.getElementById('scoreAuthor').innerText = author;
+        document.getElementById('capoDisplay').innerText = capo;
+        document.getElementById('staff-container').innerHTML = innerStaff;
+        
+        if (selectedMeasure) selectedMeasure.classList.remove('selected');
+        document.title = `${title}-${author}`;
+        
+        setTimeout(() => {
+            window.print();
+            // 인쇄 완료 후 작성 중이던 기존 악보 캔버스 정보 완벽 복구 보존
+            document.getElementById('scoreTitle').innerText = backupTitle;
+            document.getElementById('scoreAuthor').innerText = backupAuthor;
+            document.getElementById('capoDisplay').innerText = backupCapo;
+            document.getElementById('staff-container').innerHTML = backupStaff;
+        }, 50);
+    }
+
+    function saveAsPdf() {
+        const titleText = document.getElementById('scoreTitle').innerText.trim() || "제목없음";
+        const authorText = document.getElementById('scoreAuthor').innerText.trim() || "작곡가";
+        document.title = `${titleText}-${authorText}`;
+        if (selectedMeasure) selectedMeasure.classList.remove('selected');
+        setTimeout(() => { window.print(); }, 50);
+    }
+
+    // ==================================================
+    // 📖 [레슨 자료실 연동 인프라 엔진]
+    // ==================================================
+    function setupDropZone() {
+        const zone = document.getElementById('dropZone');
+        if(!zone) return;
+        
+        zone.onclick = () => document.getElementById('fileHiddenInput').click();
+        
+        zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
+        zone.ondragleave = () => zone.classList.remove('dragover');
+        zone.ondrop = (e) => {
+            e.preventDefault();
+            zone.classList.remove('dragover');
+            handleFileSelect(e.dataTransfer.files);
+        };
+    }
+
+function handleFileSelect(files) {
+        if(files.length === 0) return;
+        const file = files[0];
+        if(file.type !== "application/pdf" && !file.name.endsWith('.pdf')) {
+            alert("레슨 교재는 오직 PDF 파일만 등록 가능합니다.");
+            return;
+        }
+        uploadedFileRawData = file;
+        uploadedFileName = file.name;
+        document.getElementById('lesPdf').value = file.name;
+        document.getElementById('dropZone').innerHTML = `✅ 파일 대기 완료: ${file.name}`;
+        
+        // [자동 제목 설정] 기존 로직을 모두 유지한 상태에서 맨 아래에 제목 입력란에 파일명을 넣어주는 코드 딱 1줄만 추가합니다.
+        document.getElementById('lesTitle').value = file.name.split('.').slice(0, -1).join('.');
+    }
+
+// ==================================================
+    // 📖 [레슨 자료실 연동 인프라 엔진 - 구글 서버 완벽 연동 버전]
+    // ==================================================
+    function renderLessonList() {
+        const grid = document.getElementById('lessonGrid');
+        grid.innerHTML = '';
+        
+        if(lessonDatabase.length === 0) {
+            grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:#bdc3c7; padding:40px 0;">등록된 학습용 레슨 PDF 교재가 없습니다.</div>`;
+            return;
+        }
+        
+        lessonDatabase.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'lesson-card';
+            
+            // 클릭 시 PDF 뷰어 프리뷰 연동
+            card.onclick = () => openLessonPdf(item.rawBlobUrl);
+            
+            // 관리자일 경우 구글 서버 삭제 함수(deleteLessonFromServer)를 정확히 호출
+            let adminBtnHtml = '';
+            if(isAdminMode) {
+                adminBtnHtml = `
+                    <div class="card-action-panel">
+                        <button class="lesson-ctrl-inline-btn" style="color: #ffffff;" onclick="deleteLessonFromServer('${item.id}', '${item.file}', event)">X</button>
+                    </div>
+                `;
+            }
+            
+            card.innerHTML = `
+                ${adminBtnHtml}
+                <h4>${item.title}</h4>
+                <p>${item.desc}</p>
+                <div class="lesson-file-link">📥 파일 다운로드 및 인쇄 프리뷰 (${item.file})</div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    // 프리뷰 새창 가동 장치
+    function openLessonPdf(fileName) {
+        if(!fileName) return;
+        window.open(fileName, '_blank');
+    }
+
+    // 실제 구글 파이어베이스 스토리지 및 DB 동시 업로드 함수
+    async function addNewLessonData() {
+        const title = document.getElementById('lesTitle').value.trim();
+        const desc = document.getElementById('lesDesc').value.trim();
+        
+        if(!uploadedFileRawData || !title) {
+            alert("업로드할 실제 PDF 파일을 드래그하여 지정해 주세요.");
+            return;
+        }
+        
+        const btn = document.getElementById('btnLessonSubmit');
+        btn.disabled = true;
+        btn.innerText = "⏳ 구글 클라우드로 PDF 전송 중...";
+        
+        try {
+            const storageRef = storage.ref('lessons/' + Date.now() + '_' + uploadedFileName);
+            const uploadTask = await storageRef.put(uploadedFileRawData);
+            const objectBlobUrl = await uploadTask.ref.getDownloadURL();
+            
+            const newLesson = {
+                title: title,
+                desc: desc || "등록된 가이드 단락이 없습니다.",
+                file: uploadedFileName,
+                rawBlobUrl: objectBlobUrl,
+                createdAt: new Date()
+            };
+            
+            await db.collection('lessons').add(newLesson);
+            alert(`🎉 레슨 교재 "${title}" PDF 파일이 클라우드 서버에 성공적으로 영구 등록되었습니다!`);
+            
+            // 입력 필드 초기화
+            document.getElementById('lesTitle').value = '';
+            document.getElementById('lesPdf').value = '';
+            document.getElementById('lesDesc').value = '';
+            document.getElementById('dropZone').innerHTML = "여기에 실제 레슨 PDF 교재 파일을 드래그하여 떨어뜨리거나 클릭해서 선택하세요.";
+            
+            uploadedFileRawData = null;
+            uploadedFileName = "";
+            
+            // 실시간 서버 목록 새로고침
+            await fetchLessonsFromServer();
+
+        } catch (error) {
+            console.error("클라우드 연동 실제 예외 발생:", error);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "업로드 완료 및 데이터베이스 등록";
+        }
+    }
+
+    // 구글 서버에서 실시간으로 목록을 긁어오는 코어 엔진
+    async function fetchLessonsFromServer() {
+        try {
+            const snapshot = await db.collection('lessons').orderBy('createdAt', 'desc').get();
+            lessonDatabase = [];
+            snapshot.forEach(doc => {
+                lessonDatabase.push({ id: doc.id, ...doc.data() });
+            });
+            renderLessonList();
+        } catch (e) {
+            console.error("서버 레슨 자료 로드 실패:", e);
+        }
+    }
+
+    // 구글 DB(.doc)와 스토리지 실물 파일까지 완벽하게 동시 완전 삭제하는 핵심 함수
+    async function deleteLessonFromServer(docId, fileName, event) {
+        if(event) event.stopPropagation(); // 카드 클릭 시 PDF가 열리는 연쇄 반응 전면 차단
+        
+        if(!isAdminMode) return;
+        if(!confirm(`정말 이 레슨 교재를 클라우드 서버에서 완전 삭제하시겠습니까?\n(등록된 파일: ${fileName})`)) return;
+
+        try {
+            // 1. 구글 Firestore DB에서 해당 데이터 삭제 (.doc 문법 교정 완료)
+            await db.collection('lessons').doc(docId).delete();
+
+            // 2. 구글 스토리지에 저장되어 있던 실제 PDF 파일도 깔끔하게 지우기
+            if(fileName && docId !== "101" && docId !== "102" && !fileName.includes('open_chord_basic') && !fileName.includes('rnb_rhythm_master')) {
+                // 업로드된 파일명 규칙(lessons/파일명) 그대로 찾아서 스토리지 내부 파일 삭제
+                const storageRef = storage.ref('lessons/' + fileName);
+                await storageRef.delete().catch(err => console.log("스토리지 실물 파일은 이미 없거나 지워짐:", err));
+            }
+
+            alert("🎉 레슨 자료와 클라우드 실물 파일이 성공적으로 완전 삭제되었습니다!");
+            
+            // 3. 삭제 완료 후 실시간 리프레시
+            await fetchLessonsFromServer();
+
+        } catch (error) {
+            console.error("클라우드 삭제 중 실제 예외 발생:", error);
+            alert("서버 데이터 삭제 중 오류가 발생했습니다. 파이어베이스 Firestore 규칙 권한을 확인해 주세요.");
+        }
+    }
+
+    // 최초 로컬 환경 덤프 생성기 인터커넥트
+    function createDummyPdfBlob(name) {
+        return new Blob([`TeacherScore Dummy PDF Data content for: ${name}`], { type: 'application/pdf' });
+    }
+
+    // ==================================================
+    // ⌨️ [글로벌 단축키 인터랙션 바인딩]
+    // ==================================================
+    document.addEventListener('keydown', function(e) {
+        const active = document.activeElement;
+        if (e.key === 'Enter' && selectedMeasure && active === document.body) { e.preventDefault(); toggleLineBreak(); }
+        if (e.code === 'Space' && active.classList.contains('chord-slot')) {
+            e.preventDefault();
+            const slots = Array.from(active.parentElement.querySelectorAll('.chord-slot'));
+            const i = slots.indexOf(active);
+            if (i < 3) slots[i+1].focus();
+            else {
+                let nextM = active.closest('.measure').nextElementSibling;
+                if (!nextM) {
+                    const nextLine = active.closest('.staff-line').nextElementSibling;
+                    if (nextLine) nextM = nextLine.querySelector('.measure');
+                }
+                if (nextM) nextM.querySelector('.chord-slot').focus();
+            }
+        }
+    // 🔍 keydown 이벤트 리스너 함수 내부의 맨 아래( }); 직전 )에 이 코드를 정확하게 덮어쓰기 하세요!
+
+    // [Ctrl + C] 마디 복사 엔진
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        const selection = window.getSelection().toString();
+        // 1. 가사창(lyrics-layer)이나 입력창에서 텍스트를 드래그해서 선택한 경우, 기본 동작(복사) 수행
+        if (selection !== "") return; 
+        
+        // 2. 텍스트 선택이 없을 때는 기존처럼 마디 데이터 복사 로직 실행
+        const targets = Array.from(document.querySelectorAll('.measure.selected, .measure.multi-selected'));
+        if (targets.length === 0) return;
+        
+        e.preventDefault();
+        copiedMeasuresData = [];
+        
+        targets.forEach(m => {
+            const chordSlots = Array.from(m.querySelectorAll('.chord-slot')).map(slot => slot.innerText);
+            const rehearsalEl = m.querySelector('.rehearsal-mark');
+            const rehearsalText = rehearsalEl ? rehearsalEl.innerText : "";
+            const hasRehearsal = m.classList.contains('has-rehearsal');
+            
+            const classList = Array.from(m.classList);
+            const styleClasses = classList.filter(c => c.startsWith('has-dot-') || c.startsWith('bar-'));
+            
+            copiedMeasuresData.push({
+                chords: chordSlots,
+                rehearsalText: rehearsalText,
+                hasRehearsal: hasRehearsal,
+                styles: styleClasses
+            });
+        });
+    }
+
+    // [Ctrl + V] 마디 붙여넣기 엔진
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        // [수정] 입력창에 포커스 중일 때, 텍스트 붙여넣기를 허용하기 위해 기본 동작 방해 안함
+        const active = document.activeElement;
+        if (active.getAttribute('contenteditable') === 'true') {
+            return;
+        }
+
+        if (copiedMeasuresData.length === 0 || !selectedMeasure) return;
+        
+        e.preventDefault();
+        
+        const allMeasures = Array.from(document.querySelectorAll('.measure'));
+        const startPasteIdx = allMeasures.indexOf(selectedMeasure);
+        
+        if (startPasteIdx === -1) return;
+        
+        // 실행 직전 원본 스냅샷 데이터 수집
+        undoMeasuresBackup = {
+            startIdx: startPasteIdx,
+            measures: []
+        };
+        
+        copiedMeasuresData.forEach((data, index) => {
+            const targetMeasure = allMeasures[startPasteIdx + index];
+            if (!targetMeasure) return;
+            
+            const chordSlots = Array.from(targetMeasure.querySelectorAll('.chord-slot')).map(slot => slot.innerText);
+            const rehearsalEl = targetMeasure.querySelector('.rehearsal-mark');
+            const rehearsalText = rehearsalEl ? rehearsalEl.innerText : "";
+            const hasRehearsal = targetMeasure.classList.contains('has-rehearsal');
+            const classList = Array.from(targetMeasure.classList);
+            const styleClasses = classList.filter(c => c.startsWith('has-dot-') || c.startsWith('bar-'));
+            
+            undoMeasuresBackup.measures.push({
+                chords: chordSlots,
+                rehearsalText: rehearsalText,
+                hasRehearsal: hasRehearsal,
+                styles: styleClasses
+            });
+        });
+
+        // 실제 복사 데이터 주입
+        copiedMeasuresData.forEach((data, index) => {
+            const targetMeasure = allMeasures[startPasteIdx + index];
+            if (!targetMeasure) return;
+            
+            const slots = targetMeasure.querySelectorAll('.chord-slot');
+            data.chords.forEach((chordText, i) => {
+                if (slots[i]) slots[i].innerText = chordText;
+            });
+            
+            const rehearsalEl = targetMeasure.querySelector('.rehearsal-mark');
+            if (rehearsalEl) {
+                rehearsalEl.innerText = data.rehearsalText;
+                if (data.hasRehearsal) {
+                    targetMeasure.classList.add('has-rehearsal');
+                } else {
+                    targetMeasure.classList.remove('has-rehearsal');
+                }
+            }
+            
+            targetMeasure.classList.remove('has-dot-left', 'has-dot-right', 'bar-double', 'bar-end');
+            data.styles.forEach(c => targetMeasure.classList.add(c));
+        });
+        
+        allMeasures.forEach(m => m.classList.remove('multi-selected'));
+    }
+
+    // [Ctrl + Z] 붙여넣기 완벽 실행 취소 (Undo 엔진)
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (!undoMeasuresBackup) return; 
+        
+        e.preventDefault();
+        
+        const allMeasures = Array.from(document.querySelectorAll('.measure'));
+        const startPasteIdx = undoMeasuresBackup.startIdx;
+        
+        undoMeasuresBackup.measures.forEach((oldData, index) => {
+            const targetMeasure = allMeasures[startPasteIdx + index];
+            if (!targetMeasure) return;
+            
+            const slots = targetMeasure.querySelectorAll('.chord-slot');
+            oldData.chords.forEach((chordText, i) => {
+                if (slots[i]) slots[i].innerText = chordText;
+            });
+            
+            const rehearsalEl = targetMeasure.querySelector('.rehearsal-mark');
+            if (rehearsalEl) {
+                rehearsalEl.innerText = oldData.rehearsalText;
+                if (oldData.hasRehearsal) {
+                    targetMeasure.classList.add('has-rehearsal');
+                } else {
+                    targetMeasure.classList.remove('has-rehearsal');
+                }
+            }
+            
+            targetMeasure.classList.remove('has-dot-left', 'has-dot-right', 'bar-double', 'bar-end');
+            oldData.styles.forEach(c => targetMeasure.classList.add(c));
+        });
+        
+        undoMeasuresBackup = null; // 사용 완료 후 백업 초기화
+    }
+    });
+
+    // ==================================================
+    // ⚙️ [시스템 최초 초기화 빌더] - [어드민 세션 복구 버전]
+    // ==================================================
+    window.onload = async function() {
+        // 새로고침 시 로컬스토리지 뒤져서 어드민 상태 자동 복구
+        if (localStorage.getItem('ts_admin_session') === 'active') {
+            isAdminMode = true;
+            document.body.classList.add('admin-mode-active');
+            document.getElementById('adminBadge').style.display = 'block';
+        }
+        
+        await loadFromFirebase(); 
+        await fetchLessonsFromServer(); 
+        switchTab('list');
+        clearScoreToDefault(); 
+    };
+</script>
+</body>
+</html>
