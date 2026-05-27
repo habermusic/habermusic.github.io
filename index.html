@@ -6,7 +6,7 @@
     
     <meta name="naver-site-verification" content="95c3d5534b93f72ab1664ffe8caf5e7d695f0ab0" />
     
-    <title>티처스코어 - 누구나 만드는 악보 제작 툴</title>
+    <title>티처스코어 - 누구나 만드는 쉬운 악보 제작 툴</title>
     
     <meta name="description" content="티처스코어는 마우스 클릭 몇 번으로 나만의 악보를 쉽게 제작하고 공유할 수 있는 무료 악보 제작 서비스입니다." />
     <meta name="keywords" content="티처스코어, 악보제작, 악보그리기, 코드악보, 음악공부, habermusic" />
@@ -252,6 +252,23 @@ body.admin-mode-active .user-only-btn {
     display: none !important;
 }
 
+/* 1. 상단 메뉴바 고정 (메뉴바가 사라지는 것 방지) */
+#top-nav-bar {
+    position: fixed !important;
+    top: 0;
+    z-index: 9999; /* 메뉴가 콘텐츠 위로 뜨게 설정 */
+}
+
+/* 아래 코드가 핵심입니다! 디자인은 그대로 두고 위치만 밀어냅니다. */
+.tab-view {
+    padding-top: 60px; /* 메뉴바 높이만큼 여백을 주어 가려짐 방지 */
+}
+
+/* 3. 활성화된 탭만 표시 */
+.tab-view.active {
+    display: block !important;
+}
+
     </style>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -263,13 +280,22 @@ body.admin-mode-active .user-only-btn {
     <div class="sidebar-title" onclick="triggerAdminMode()">티처스코어</div>
     <div id="adminBadge" class="admin-status">[관리자 모드]</div>
     
-    <div id="maker-exclusive-controls" style="display:none;">
+   <div id="maker-exclusive-controls" style="display:none;">
         <button class="control-btn" style="background:#2ecc71;" onclick="createNewScoreFresh()">새 악보 만들기</button>
         <button class="control-btn" style="background:#e67e22;" onclick="saveAsPdf()">Pdf로 저장</button>
-    <button class="control-btn user-only-btn" style="background:#3498db;" onclick="openSuggestModal()">관리자에게 악보 등록 요청하기</button>
-        <button class="control-btn admin-only-ui" style="background:#2980b9; margin-bottom:25px;" onclick="saveCurrentScoreToList()">현재 악보를 목록에 저장</button>
+        <button class="control-btn user-only-btn" style="background:#3498db;" onclick="openSuggestModal()">관리자에게 악보 등록 요청하기</button>
         
+        <button id="btn-normal-save" class="control-btn admin-only-ui" style="background:#2980b9; margin-bottom:25px;" onclick="saveCurrentScoreToList()">현재 악보를 목록에 저장</button>
+        
+        <div id="review-controls" class="admin-only-ui" style="display:none; margin-bottom:25px; gap:5px;">
+            <button class="control-btn" style="background:#3498db; margin-bottom:0; flex:1;" onclick="approvePendingScore()">✅ 승인</button>
+            <button class="control-btn" style="background:#e63946; margin-bottom:0; flex:1;" onclick="rejectPendingScore()">❌ 반려</button>
+        </div>
+        
+        <div id="editor-tool-groups">
+            
 <div class="tool-group">
+
     <h3>기호 및 마크</h3>
     <div class="symbol-row">
         <button class="symbol-btn rehearsal-btn" onclick="toggleRehearsal()">리허설 마크</button>
@@ -300,7 +326,7 @@ body.admin-mode-active .user-only-btn {
 
         <div class="tool-group" style="border:none;">
             <h3>단축키</h3>
-<div class="shortcut-guide">
+            <div class="shortcut-guide">
                 <b>Enter</b> 줄바꿈 (마디 선택 시)<br>
                 <b>우클릭</b> 마디 추가 (뒤쪽)<br>
                 <b>Shift+우클릭</b> 현재 마디 삭제<br>
@@ -308,7 +334,7 @@ body.admin-mode-active .user-only-btn {
                 <b>Ctrl+C, V</b> 마디 복사/붙여넣기
             </div>
         </div>
-    </div>
+        </div> </div>
 </div>
 
 <div id="content-wrapper">
@@ -329,6 +355,28 @@ body.admin-mode-active .user-only-btn {
                 <div class="search-box">
                     <input type="text" id="searchInput" class="search-input" placeholder="검색할 악보 제목 또는 작곡가를 입력하세요..." oninput="renderScoreList()">
                 </div>
+                
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; justify-content: flex-end; flex-wrap: wrap;">
+                    <select id="sortOption" onchange="renderScoreList()" style="padding: 10px; border-radius: 4px; border: none; font-size: 14px; font-weight: 700; color: #000; outline: none; cursor: pointer; font-family: 'Noto Sans KR';">
+                        <option value="date_desc">🕒 최신순</option>
+                        <option value="title_asc">🔠 가나다순</option>
+                    </select>
+                    <select id="filterRating" onchange="renderScoreList()" style="padding: 10px; border-radius: 4px; border: none; font-size: 14px; font-weight: 700; color: #000; outline: none; cursor: pointer; font-family: 'Noto Sans KR';">
+                        <option value="all">⭐ 별점 전체</option>
+                        <option value="5">⭐⭐⭐⭐⭐ (5점)</option>
+                        <option value="4">⭐⭐⭐⭐ (4점)</option>
+                        <option value="3">⭐⭐⭐ (3점)</option>
+                        <option value="2">⭐⭐ (2점)</option>
+                        <option value="1">⭐ (1점)</option>
+                        <option value="0">평가 안 됨</option>
+                    </select>
+                    <select id="filterOfficial" onchange="renderScoreList()" style="padding: 10px; border-radius: 4px; border: none; font-size: 14px; font-weight: 700; color: #000; outline: none; cursor: pointer; font-family: 'Noto Sans KR';">
+                        <option value="all">📂 모든 악보</option>
+                        <option value="official">✨ TS 공식 악보만</option>
+                        <option value="user">👤 유저 악보만</option>
+                    </select>
+                </div>
+
                 <div id="scoreGrid" class="score-grid"></div>
             </div>
         </div>
@@ -387,6 +435,13 @@ body.admin-mode-active .user-only-btn {
     </div>
 </div>
 
+<div id="view-approve" class="tab-view">
+    <div class="list-container">
+        <h3>검수 대기 중인 악보</h3>
+        <div id="pendingScoreGrid" class="score-grid"></div>
+    </div>
+</div>
+
 <script>
     // 🔥 [교체용] 사장님의 실제 파이어베이스 설정값 완벽 매칭 세트
     const firebaseConfig = {
@@ -417,6 +472,9 @@ body.admin-mode-active .user-only-btn {
     let lessonDatabase = [];
     let editingScoreId = null;
     
+    let reviewingPendingId = null;      // 👈 [추가] 검수 중인 악보의 문서 ID (DB 문서 고유 번호)
+    let reviewingPendingUploader = "";  // 👈 [추가] 검수 중인 악보를 제안한 사용자 닉네임
+
     let uploadedFileRawData = null;
     let uploadedFileName = "";
     
@@ -489,12 +547,16 @@ async function saveToFirebase() {
     try {
         if (editingScoreId) {
             // --- CASE A: 수정 완료 모드 ---
+            // (수정 시에는 기존의 isOfficial이나 uploader 정보를 덮어쓰지 않고 유지합니다)
             await db.collection('scores').doc(String(editingScoreId)).update(data);
             alert("악보 수정이 완료되었습니다.");
         } else {
-            // --- CASE B: 신규 악보 저장 모드 ---
+            // --- CASE B: 신규 악보 저장 모드 (어드민 직권 생성) ---
+            data.isOfficial = true;         // 👈 [추가] 관리자 공식 악보 판정
+            data.uploader = "티처스코어";     // 👈 [추가] 제작자 명시
+            data.rating = 0;
             await db.collection('scores').add(data);
-            alert("새 악보가 저장되었습니다.");
+            alert("새 공식 악보가 저장되었습니다.");
         }
     } catch(e) {
         console.error(e);
@@ -546,13 +608,26 @@ function saveLessonToLocalStorage() {
         }
     }
 
-    function clearScoreToDefault() {
+        function clearScoreToDefault() {
         document.getElementById('scoreTitle').innerText = '';
         document.getElementById('scoreAuthor').innerText = '';
         document.getElementById('capoDisplay').innerText = '';
         initEmptyStaff();
         selectedMeasure = null;
         startMeasure = null;
+        
+        // 👈 [추가] 검수 모드 해제 및 일반 저장 버튼으로 원상 복구
+        reviewingPendingId = null;
+        reviewingPendingUploader = "";
+        const normalSaveBtn = document.getElementById('btn-normal-save');
+        const reviewControls = document.getElementById('review-controls');
+    
+        if (normalSaveBtn) normalSaveBtn.style.display = '';
+        if (reviewControls) reviewControls.style.display = 'none';
+    
+        // [추가] 도구 상자 다시 보이게 하기
+        const editorTools = document.getElementById('editor-tool-groups');
+        if (editorTools) editorTools.style.display = 'block';
     }
 
     function createNewScoreFresh() {
@@ -688,23 +763,41 @@ function saveLessonToLocalStorage() {
     // 🌐 [라우터 탭 제어 및 데이터 로드 연동]
     // ==================================================
     function switchTab(tabId) {
-        document.querySelectorAll('.tab-view').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById('view-' + tabId).classList.add('active');
-        document.getElementById('tab-indicator-' + tabId).classList.add('active');
-        
-        if (tabId === 'maker') {
-            document.getElementById('maker-exclusive-controls').style.display = 'block';
-        } else {
-            document.getElementById('maker-exclusive-controls').style.display = 'none';
-        }
-        
-        if (tabId === 'list') renderScoreList();
-        if (tabId === 'lesson') {
-            renderLessonList();
-            setupDropZone();
-        }
+    // 1. 모든 탭 뷰(내용물) 숨기기
+    const allViews = document.querySelectorAll('.tab-view');
+    allViews.forEach(el => el.classList.remove('active'));
+
+    // 2. 선택한 탭 내용만 보여주기
+    const target = document.getElementById('view-' + tabId);
+    if (target) {
+        target.classList.add('active');
     }
+
+    // 3. 상단 메뉴바(tab-btn) 활성화 상태만 업데이트
+    const allBtns = document.querySelectorAll('.tab-btn');
+    allBtns.forEach(el => el.classList.remove('active'));
+    
+    const activeBtn = document.getElementById('tab-indicator-' + tabId);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
+    
+    // 4. 특정 탭별 로직 (기존 로직 유지)
+    if (tabId === 'maker') {
+        document.getElementById('maker-exclusive-controls').style.display = 'block';
+    } else {
+        document.getElementById('maker-exclusive-controls').style.display = 'none';
+    }
+    
+    if (tabId === 'list') renderScoreList();
+    if (tabId === 'lesson') {
+        renderLessonList();
+        setupDropZone();
+    }
+    if (tabId === 'approve') {
+        loadPendingScores();
+    }
+}
 
 async function saveCurrentScoreToList() {
     // 1. 에디터에서 데이터 추출
@@ -750,73 +843,138 @@ async function deleteScoreFromList(id, event) {
 }
 
     // ==================================================
-    // 🖨️ [악보 목록 렌더링 및 프리뷰 코어 메커니즘]
+    // 🖨️ [악보 목록 렌더링 및 프리뷰 코어 메커니즘 (필터/정렬 완벽 보정)]
     // ==================================================
     function renderScoreList() {
         const grid = document.getElementById('scoreGrid');
         grid.innerHTML = '';
         const keyword = document.getElementById('searchInput').value.toLowerCase().trim();
         
-        const filtered = scoresDatabase.filter(item => {
-            return item.title.toLowerCase().includes(keyword) || item.author.toLowerCase().includes(keyword);
+        // 1. 현재 선택된 필터/정렬 값 가져오기
+        const sortOpt = document.getElementById('sortOption') ? document.getElementById('sortOption').value : 'date_desc';
+        const filterRating = document.getElementById('filterRating') ? document.getElementById('filterRating').value : 'all';
+        const filterOfficial = document.getElementById('filterOfficial') ? document.getElementById('filterOfficial').value : 'all';
+
+        // 2. 검색 및 데이터 필터링
+        let filtered = scoresDatabase.filter(item => {
+            // (1) 검색어 필터
+            const matchKeyword = item.title.toLowerCase().includes(keyword) || item.author.toLowerCase().includes(keyword);
+            if (!matchKeyword) return false;
+            
+            // (2) 공식/유저 필터
+            if (filterOfficial === 'official' && !item.isOfficial) return false;
+            if (filterOfficial === 'user' && item.isOfficial) return false;
+            
+            // (3) 별점 필터 (선택한 개수와 정확히 일치하는 것만)
+            const rating = item.rating || 0;
+            if (filterRating !== 'all' && rating !== parseInt(filterRating)) return false;
+            
+            return true;
+        });
+
+        // 3. 데이터 정렬 (★ 에러 차단 및 실제 날짜 기반 최신순 정렬로 대폭 보강)
+        filtered.sort((a, b) => {
+            if (sortOpt === 'title_asc') {
+                const titleA = String(a.title || '');
+                const titleB = String(b.title || '');
+                return titleA.localeCompare(titleB); // 가나다순
+            } else {
+                // 🕒 최신순 정렬: "2026. 5. 27." 형태의 날짜 문자열을 안전하게 타임스탬프 숫자로 바꾸어 비교
+                const parseDateToTimestamp = (dateStr) => {
+                    if (!dateStr) return 0;
+                    try {
+                        // 공백 제거, 끝 점 제거 후 점(.)을 하이픈(-)으로 교체해 표준 날짜 포맷 생성 ("2026-5-27")
+                        const cleaned = String(dateStr).replace(/\s/g, '').replace(/\.$/, '').replace(/\./g, '-');
+                        const timestamp = Date.parse(cleaned);
+                        return isNaN(timestamp) ? 0 : timestamp;
+                    } catch (e) {
+                        return 0; // 에러 발생 시 시스템 멈춤 방지용 안전장치
+                    }
+                };
+                
+                const timeA = parseDateToTimestamp(a.date);
+                const timeB = parseDateToTimestamp(b.date);
+                
+                if (timeA !== timeB) {
+                    return timeB - timeA; // 날짜 기준 내림차순 (최신순)
+                }
+                
+                // 혹시 날짜가 완전히 똑같거나 없는 경우, ID 문자열 비교로 튕김 현상 원천 차단
+                const idA = String(a.id || '');
+                const idB = String(b.id || '');
+                return idB.localeCompare(idA); 
+            }
         });
         
+        // 4. 결과가 없을 때 처리
         if(filtered.length === 0) {
-            grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:#bdc3c7; padding:40px 0;">등록된 악보가 없거나 검색 결과가 없습니다.</div>`;
+            grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; color:#bdc3c7; padding:40px 0;">등록된 악보가 없거나 검색 조건에 맞는 결과가 없습니다.</div>`;
             return;
         }
         
+        // 5. 카드 렌더링
         filtered.forEach(item => {
-    const card = document.createElement('div');
-    card.className = 'score-card';
-    card.onclick = () => directPrintRawData(item.title, item.author, item.capo, item.innerStaff);
-    
-    // 1. 관리자 모드 버튼 생성
-    let actionPanelHtml = '';
-    if(isAdminMode) {
-        actionPanelHtml = `
-            <div class="card-action-panel" style="display: flex; gap: 5px; margin-bottom: 5px;">
-                <button class="card-ctrl-inline-btn" style="background-color: #3498db; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;" onclick="loadScoreToEditor('${item.id}', event)">수정</button>
-                <button class="card-ctrl-inline-btn" style="background-color: #e63946; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;" onclick="deleteScoreFromList('${item.id}', event)">X</button>
+            const card = document.createElement('div');
+            card.className = 'score-card';
+            card.onclick = () => directPrintRawData(item.title, item.author, item.capo, item.innerStaff);
+            
+            let actionPanelHtml = '';
+            if(isAdminMode) {
+                actionPanelHtml = `
+                    <div class="card-action-panel" style="display: flex; gap: 5px; margin-bottom: 5px;">
+                        <button class="card-ctrl-inline-btn" style="background-color: #3498db; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;" onclick="loadScoreToEditor('${item.id}', event)">수정</button>
+                        <button class="card-ctrl-inline-btn" style="background-color: #e63946; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;" onclick="deleteScoreFromList('${item.id}', event)">X</button>
+                    </div>
+                `;
+            }
+            
+            const rating = item.rating || 0;
+            let starsHtml = `<div class="rating-container ${isAdminMode ? 'admin-mode' : ''}" style="display: flex; gap: 2px; margin-top: 5px;" onclick="event.stopPropagation()">`;
+            for(let i=1; i<=5; i++) {
+                const clickEvent = isAdminMode ? `onclick="updateRating('${item.id}', ${i})"` : '';
+                starsHtml += `<span class="star ${i <= rating ? 'filled' : ''}" style="color: ${i <= rating ? '#f1c40f' : '#ccc'}; cursor: ${isAdminMode ? 'pointer' : 'default'};" ${clickEvent}>★</span>`;
+            }
+            starsHtml += `</div>`;
+            
+            card.innerHTML = `
+            ${actionPanelHtml}
+            <div class="card-title">${item.title}</div>
+            <div class="card-author">${item.author}</div>
+            ${starsHtml}
+            <div class="card-date" style="text-align: right; bottom: 12px; right: 15px; position: absolute; line-height: 1.4;">
+                ${item.isOfficial 
+                    ? `<div style="color: #3498db; font-size: 11px; font-weight: 900; letter-spacing: -0.5px;">✨ TS 공식</div>` 
+                    : `<div style="color: #e67e22; font-size: 11px; font-weight: 700;"> ${item.uploader || '미상'}</div>`}
+                <div style="font-size: 10px; color: #95a5a6;">${item.date}</div>
             </div>
         `;
-    }
-    
-    // 2. 별점 HTML 생성
-    const rating = item.rating || 0;
-    let starsHtml = `<div class="rating-container ${isAdminMode ? 'admin-mode' : ''}" style="display: flex; gap: 2px; margin-top: 5px;" onclick="event.stopPropagation()">`;
-    for(let i=1; i<=5; i++) {
-        // 어드민인 경우에만 클릭 이벤트 부여
-        const clickEvent = isAdminMode ? `onclick="updateRating('${item.id}', ${i})"` : '';
-        starsHtml += `<span class="star ${i <= rating ? 'filled' : ''}" style="color: ${i <= rating ? '#f1c40f' : '#ccc'}; cursor: ${isAdminMode ? 'pointer' : 'default'};" ${clickEvent}>★</span>`;
-    }
-    starsHtml += `</div>`;
-    
-    // 3. 카드 구성 완성
-    card.innerHTML = `
-    ${actionPanelHtml}
-    <div class="card-title">${item.title} 
-        ${item.isOfficial ? '<span style="color:blue;">[TS공식]</span>' : ''}
-    </div>
-    <div class="card-author">${item.author}</div>
-    ${starsHtml}
-    <div class="card-date">
-        ${item.uploader ? `제작자: ${item.uploader} | ` : ''} 
-        ${item.date}
-    </div>
-`;
-    grid.appendChild(card);
-});
+            grid.appendChild(card);
+        });
     }
 
 // [수정] 악보 목록에서 수정 버튼 누를 시
-function loadScoreToEditor(id, event) {
+    function loadScoreToEditor(id, event) {
     if(event) event.stopPropagation();
     
     const target = scoresDatabase.find(s => String(s.id) === String(id));
     if(!target) return alert("데이터를 찾을 수 없습니다.");
     
     editingScoreId = id; // 전역 변수에 ID 저장
+
+// 👈 [추가] 검수 모드 해제 및 일반 저장 버튼으로 원상 복구
+        reviewingPendingId = null;
+        reviewingPendingUploader = "";
+        const normalSaveBtn = document.getElementById('btn-normal-save');
+        const reviewControls = document.getElementById('review-controls');
+        
+        // [수정] 일반 저장 버튼은 CSS(admin-only-ui) 규칙을 따르도록 inline style을 빈 값('')으로 날립니다.
+        if (normalSaveBtn) normalSaveBtn.style.display = '';
+        if (reviewControls) reviewControls.style.display = 'none';
+        
+        // [추가] 도구 상자 다시 보이게 하기
+        const editorTools = document.getElementById('editor-tool-groups');
+        if (editorTools) editorTools.style.display = 'block';
+    // -----------------------------------------------------------
     
     document.getElementById('scoreTitle').innerText = target.title;
     document.getElementById('scoreAuthor').innerText = target.author;
@@ -1242,6 +1400,158 @@ async function submitSuggestion() {
     } catch(e) {
         console.error("Firebase 전송 오류:", e);
         alert("전송 중 오류 발생: " + e.message);
+    }
+}
+// 코드 하단에 추가 또는 수정
+function getEditorData() {
+    const titleText = document.getElementById('scoreTitle').innerText.trim() || "제목 없는 악보";
+    const authorText = document.getElementById('scoreAuthor').innerText.trim() || "미상";
+    const capoText = document.getElementById('capoDisplay').innerText.trim();
+    const staffHtml = document.getElementById('staff-container').innerHTML;
+    
+    return {
+        title: titleText,
+        author: authorText,
+        capo: capoText,
+        innerStaff: staffHtml,
+        date: new Date().toLocaleDateString('ko-KR')
+    };
+}
+  //어드민 검수//
+
+// 1. 요청 목록 불러오기
+async function loadPendingScores() {
+    const snapshot = await db.collection('pending_scores').get();
+    const grid = document.getElementById('pendingScoreGrid');
+    grid.innerHTML = '';
+    
+    snapshot.forEach(doc => {
+        const data = doc.data();
+        const card = document.createElement('div');
+        card.className = 'score-card';
+        card.style.cursor = 'pointer'; 
+        card.innerHTML = `
+            <div class="card-title" style="font-weight:bold;">${data.title}</div>
+            <div class="card-uploader" style="font-size:0.9em; color:#ccc;">요청자: ${data.uploader}</div>
+        `;
+        
+        // [핵심] 클릭 시 에디터 로드 및 버튼 UI 전환
+        card.onclick = () => {
+            // 1. 전역 상태 변수 장전
+            reviewingPendingId = doc.id;
+            reviewingPendingUploader = data.uploader || "미상";
+            editingScoreId = null; // 일반 수정 모드는 끄기
+
+            // 2. 에디터에 악보 내용 렌더링
+            document.getElementById('scoreTitle').innerText = data.title || '';
+            document.getElementById('scoreAuthor').innerText = data.author || '';
+            document.getElementById('capoDisplay').innerText = data.capo || '';
+            document.getElementById('staff-container').innerHTML = data.innerStaff || '<div class="staff-line"></div>';
+            
+            // 3. 버튼 전환 및 도구상자 숨김
+            document.getElementById('btn-normal-save').style.display = 'none';
+            document.getElementById('review-controls').style.display = 'flex';
+            
+            // 👈 [추가] 검수 시 도구상자 깔끔하게 숨김
+            document.getElementById('editor-tool-groups').style.display = 'none'; 
+            
+            // 4. 제작 탭으로 이동
+            switchTab('maker');
+        };
+        grid.appendChild(card);
+    });
+}
+
+
+// ==================================================
+// 🕵️ [제작페이지용 승인 / 반려 핵심 엔진]
+// ==================================================
+
+// 1. [승인] 에디터의 현재 내용을 공식 악보 목록으로 이동
+async function approvePendingScore() {
+    if (!reviewingPendingId) return alert("검수 중인 악보가 아닙니다.");
+    
+    // 에디터에서 최종 수정된 데이터 추출
+    const titleText = document.getElementById('scoreTitle').innerText.trim() || "제목 없는 악보";
+    const authorText = document.getElementById('scoreAuthor').innerText.trim() || "미상";
+    const capoText = document.getElementById('capoDisplay').innerText.trim();
+    const staffHtml = document.getElementById('staff-container').innerHTML;
+    
+    // 승인될 데이터 객체 세팅 (제안자 닉네임 포함, 공식 라벨은 false)
+    const approvedData = {
+        title: titleText,
+        author: authorText,
+        capo: capoText,
+        innerStaff: staffHtml,
+        date: new Date().toLocaleDateString('ko-KR'),
+        uploader: reviewingPendingUploader, // 👈 [핵심] 유저 닉네임 삽입
+        isOfficial: false,                  // 👈 [핵심] 유저 제안 악보이므로 공식 마크 제외
+        rating: 0
+    };
+    
+    try {
+        // 1. scores(실제 악보 목록)에 추가
+        await db.collection('scores').add(approvedData);
+        // 2. pending_scores(대기열)에서 삭제
+        await db.collection('pending_scores').doc(reviewingPendingId).delete();
+        
+        alert(`승인 완료! [${reviewingPendingUploader}]님의 악보가 목록에 등록되었습니다.`);
+        
+        // 3. 화면 초기화 및 목록 탭으로 이동
+        clearScoreToDefault();
+        await loadFromFirebase();
+        switchTab('list');
+    } catch (e) {
+        console.error("승인 중 오류:", e);
+        alert("승인 처리 중 문제가 발생했습니다.");
+    }
+}
+
+// 2. [반려] 대기열에서 즉시 영구 삭제
+async function rejectPendingScore() {
+    if (!reviewingPendingId) return alert("검수 중인 악보가 아닙니다.");
+    if (!confirm("이 악보 제안을 반려하고 대기열에서 완전히 삭제하시겠습니까?")) return;
+    
+    try {
+        await db.collection('pending_scores').doc(reviewingPendingId).delete();
+        alert("해당 악보 제안이 반려 및 삭제되었습니다.");
+        
+        // 화면 초기화 및 검수 대기 탭으로 복귀
+       clearScoreToDefault();
+        await loadPendingScores();
+        switchTab('approve');
+    } catch (e) {
+        console.error("반려 중 오류:", e);
+        alert("반려 처리 중 문제가 발생했습니다.");
+    }
+}
+
+// 🎯 [추가] 기존에 생성된 '미상' 악보들을 티처스코어 공식 악보로 일괄 전환하는 함수
+async function migrateExistingScoresToOfficial() {
+    if (!isAdminMode) return alert("어드민 로그인을 먼저 진행한 후 실행해 주세요.");
+    if (!confirm("데이터베이스에 등록된 기존 악보 중, 정보가 없는 악보들을 모두 [TS 공식 악보]로 일괄 전환하시겠습니까?")) return;
+    
+    try {
+        const snapshot = await db.collection('scores').get();
+        let updateCount = 0;
+        
+        for (const doc of snapshot.docs) {
+            const data = doc.data();
+            // isOfficial 필드가 없거나 uploader가 지정되지 않은 기존 데이터들만 타겟팅
+            if (data.isOfficial === undefined || !data.uploader || data.uploader === "미상") {
+                await db.collection('scores').doc(doc.id).update({
+                    isOfficial: true,
+                    uploader: "티처스코어"
+                });
+                updateCount++;
+            }
+        }
+        
+        alert(`전환 완료! 총 ${updateCount}개의 기존 악보가 공식 악보로 변경되었습니다.`);
+        await loadFromFirebase(); // 목록 즉시 갱신
+    } catch (e) {
+        console.error("마이그레이션 오류 발생:", e);
+        alert("데이터 업데이트 중 오류가 발생했습니다.");
     }
 }
 
