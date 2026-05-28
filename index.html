@@ -345,6 +345,7 @@ body.admin-mode-active .user-only-btn {
             <button id="tab-indicator-maker" class="tab-btn" onclick="switchTab('maker')">악보 제작</button>
             <button id="tab-indicator-approve" class="tab-btn admin-only-ui" onclick="switchTab('approve')">악보 검수</button>
             <button id="tab-indicator-lesson" class="tab-btn" onclick="switchTab('lesson')">레슨 자료</button>
+            <div class="tab-btn" id="tab-indicator-fame" onclick="switchTab('fame')">명예의 전당</div>
         </div>
     </div>
 
@@ -422,6 +423,34 @@ body.admin-mode-active .user-only-btn {
     </div>
 </div>
 
+<div id="view-fame" class="tab-view">
+    <div style="max-width: 600px; margin: 50px;">
+        
+        <div class="view-header" style="text-align: center; margin-bottom: 30px; padding-left: 0;">
+            <h2 style="font-size: 1.8em; color: #2c3e50; margin-bottom: 10px;">🏆</h2>
+            <p style="color: #7f8c8d; font-size: 0.95em;">티처스코어를 빛내주신 영광의 악보 제작자 랭킹입니다.</p>
+        </div>
+        
+        <div class="leaderboard-card" style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;">
+            <table style="width: 100%; border-collapse: collapse; text-align: center;">
+                <thead>
+                    <tr style="border-bottom: 2px solid #eee; font-weight: bold; height: 45px; color: #666; font-size: 0.95em;">
+                        <th style="width: 25%;">등수</th>
+                        <th style="width: 45%;">닉네임</th>
+                        <th style="width: 30%;">제작한 악보 개수</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboardBody">
+                    </tbody>
+            </table>
+            
+            <div style="text-align: center; margin-top: 35px; color: #95a5a6; font-size: 0.9em; font-weight: 500; border-top: 1px dashed #eee; padding-top: 20px;">
+                그 외에도 티처스코어를 응원해주시는 모든 분들께 감사드립니다.
+            </div>
+        </div>
+    </div>
+</div>
+
 <div id="suggest-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
     <div style="background:white; padding:20px; width:300px; margin: 100px auto; border-radius:10px;">
         <h3>관리자에게 악보 등록 요청</h3>
@@ -436,11 +465,12 @@ body.admin-mode-active .user-only-btn {
 </div>
 
 <div id="view-approve" class="tab-view">
-    <div class="list-container">
-        <h3>검수 대기 중인 악보</h3>
-        <div id="pendingScoreGrid" class="score-grid"></div>
-    </div>
-</div>
+    <div style="max-width: 600px; margin: 30px 0 0 40px;">
+        <div class="list-container">
+            <h3>검수 대기 중인 악보</h3>
+            <div id="pendingScoreGrid" class="score-grid"></div>
+        </div>
+    </div> </div>
 
 <script>
     // 🔥 [교체용] 사장님의 실제 파이어베이스 설정값 완벽 매칭 세트
@@ -796,6 +826,10 @@ function saveLessonToLocalStorage() {
     }
     if (tabId === 'approve') {
         loadPendingScores();
+    }
+    // switchTab 함수 내부 하단에 추가//명예의전당//
+    if (tabId === 'fame') {
+        renderLeaderboard();
     }
 }
 
@@ -1568,6 +1602,78 @@ async function updateRating(id, score) {
     } catch(e) {
         console.error("별점 수정 실패:", e);
         alert("별점 저장 중 오류가 발생했습니다.");
+    }
+}
+
+// [명예의 전당] 데이터를 집계하고 리더보드를 화면에 그리는 함수
+async function renderLeaderboard() {
+    const tbody = document.getElementById('leaderboardBody');
+    if (!tbody) return;
+    
+    // 로딩 상태 안내 표시
+    tbody.innerHTML = '<tr><td colspan="3" style="padding: 30px; color: #999;">데이터를 집계하고 있습니다...</td></tr>';
+    
+    try {
+        // 1. Firebase에서 전체 악보 데이터 원본 로드
+        const snapshot = await db.collection('scores').get();
+        const userScoreCount = {};
+        
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            
+            // [조건 4 확인] 공식 악보(isOfficial이 true인 경우)는 통계 집계에서 제외
+            if (data.isOfficial === true) return;
+            
+            // 작성자 명칭 추출 (데이터가 비어있을 경우 예외처리)
+            const uploader = (data.uploader && data.uploader.trim() !== '') ? data.uploader.trim() : '익명 사용자';
+            
+            // 유저별 악보 생성 개수 누적 계산
+            userScoreCount[uploader] = (userScoreCount[uploader] || 0) + 1;
+        });
+        
+        // 2. 집계된 객체를 배열로 풀어서 랭킹 정렬 준비
+        const leaderboardArray = Object.keys(userScoreCount).map(nickname => {
+            return { name: nickname, count: userScoreCount[nickname] };
+        });
+        
+        // 악보 제작 개수가 많은 순서대로 내림차순 정렬
+        leaderboardArray.sort((a, b) => b.count - a.count);
+        
+        // [조건 2 확인] 상위 1~10등까지만 커트라인 적용
+        const top10Users = leaderboardArray.slice(0, 10);
+        
+        // 테이블 초기화 후 데이터 바인딩
+        tbody.innerHTML = '';
+        
+        if (top10Users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="padding: 30px; color: #999;">집계할 악보 데이터가 없습니다.</td></tr>';
+            return;
+        }
+        
+        // HTML 요소 생성 및 삽입
+        top10Users.forEach((user, index) => {
+            const rank = index + 1;
+            let rankText = rank + '등';
+            let rowStyle = '';
+            
+            // 1, 2, 3등 하이라이트 효과 부여
+            if (rank === 1) { rankText = '🥇 1등'; rowStyle = 'font-weight: bold; color: #e67e22; background: #fdfaf6;'; }
+            else if (rank === 2) { rankText = '🥈 2등'; rowStyle = 'font-weight: bold; color: #7f8c8d;'; }
+            else if (rank === 3) { rankText = '🥉 3등'; rowStyle = 'font-weight: bold; color: #d35400;'; }
+            
+            const tr = document.createElement('tr');
+            tr.style.cssText = `border-bottom: 1px solid #f9f9f9; height: 50px; font-size: 0.95em; ${rowStyle}`;
+            tr.innerHTML = `
+                <td style="font-size: 1.05em;">${rankText}</td>
+                <td style="color: #2c3e50; font-weight: 500;">${user.name}</td>
+                <td style="color: #34495e;">${user.count}개</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        
+    } catch (error) {
+        console.error("리더보드 로딩 실패 원인:", error);
+        tbody.innerHTML = '<tr><td colspan="3" style="padding: 30px; color: #e74c3c;">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>';
     }
 }
 
